@@ -25,16 +25,17 @@
                 <div id="login-form" class="login-form active">
                     <div class="form-group">
                         <label>邮箱 / 用户名</label>
-                        <input type="text" id="login-email" placeholder="请输入邮箱或用户名" value="demo@igcse.com">
+                        <input type="text" id="login-email" placeholder="请输入邮箱或用户名">
                     </div>
                     <div class="form-group">
                         <label>密码</label>
-                        <input type="password" id="login-password" placeholder="请输入密码" value="123456">
+                        <input type="password" id="login-password" placeholder="请输入密码">
                     </div>
                     <button class="btn btn-primary btn-block" onclick="handleLogin()">登 录</button>
-                    <p class="login-tip">💡 演示账号已预填，直接点击登录即可体验</p>
+                    <p class="login-tip">💡 已有账号请直接登录，新用户请点击上方「注册」</p>
                 </div>
                 <div id="register-form" class="login-form">
+                    <p class="login-tip" style="margin-bottom:12px;">🔐 注册协作者账号需填写邀请码</p>
                     <div class="form-group">
                         <label>昵称</label>
                         <input type="text" id="reg-name" placeholder="给自己起个昵称">
@@ -46,6 +47,10 @@
                     <div class="form-group">
                         <label>密码</label>
                         <input type="password" id="reg-password" placeholder="设置密码">
+                    </div>
+                    <div class="form-group">
+                        <label>邀请码 Invite Code</label>
+                        <input type="text" id="reg-invite-code" placeholder="请输入邀请码">
                     </div>
                     <div class="form-group">
                         <label>目标考试局</label>
@@ -63,11 +68,11 @@
                         <input type="password" id="guest-code" placeholder="请输入站点访问密码">
                     </div>
                     <div class="form-group">
-                        <label>访客昵称</label>
+                        <label>访客昵称（可选）</label>
                         <input type="text" id="guest-name" placeholder="输入你的昵称">
                     </div>
                     <button class="btn btn-outline btn-block" onclick="handleGuestLogin()">以访客身份进入</button>
-                    <p class="login-tip">🔑 演示密码：guest123</p>
+                    <p class="login-tip">🔑 访客无需注册，输入访问密码即可浏览</p>
                 </div>
             </div>
             <div class="login-features">
@@ -654,7 +659,7 @@
                             <h4>🔑 访问密码</h4>
                             <p>好友输入密码即可访问站点</p>
                             <div class="share-link-box">
-                                <input type="text" id="access-code" readonly value="IGCSE2024">
+                                <input type="text" id="access-code" readonly value="guest123">
                                 <button class="btn btn-outline btn-sm" onclick="regenerateCode()">重新生成</button>
                             </div>
                             <p class="share-tip">当前密码对应权限：只读访客</p>
