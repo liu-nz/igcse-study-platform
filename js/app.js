@@ -101,6 +101,12 @@ function shuffleArray(arr) {
     return a;
 }
 
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 // ========== 登录系统 ==========
 document.querySelectorAll('.login-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -377,7 +383,7 @@ function renderMaterials() {
     }
     const typeNames = { notes: '讲义笔记', pastpaper: '历年真题', markscheme: '评分标准', summary: '考点总结', other: '其他' };
     grid.innerHTML = materials.map(m => `
-        <div class="material-card">
+        <div class="material-card" onclick="openMaterial('${m.id}')">
             <div class="material-icon">${m.icon}</div>
             <div class="material-name">${m.name}</div>
             <div class="material-meta">
@@ -391,6 +397,28 @@ function renderMaterials() {
             </div>
         </div>
     `).join('');
+}
+
+function openMaterial(id) {
+    const allMaterials = [...MATERIALS_DATA, ...(appData.materials || [])];
+    const m = allMaterials.find(x => x.id === id);
+    if (!m) { showToast('资料不存在'); return; }
+    const typeNames = { notes: '讲义笔记 Notes', pastpaper: '历年真题 Past Paper', markscheme: '评分标准 Mark Scheme', summary: '考点总结 Summary', other: '其他 Other' };
+    document.getElementById('material-modal-title').textContent = m.icon + ' ' + m.name;
+    document.getElementById('material-modal-meta').innerHTML = `
+        <span class="material-tag">${m.subject}</span>
+        <span class="material-tag">${typeNames[m.type] || m.type}</span>
+        <span class="material-tag">📦 ${m.size}</span>
+        <span class="material-tag">📅 ${m.date}</span>
+        ${(m.tags || []).map(t => `<span class="material-tag">${t}</span>`).join('')}
+    `;
+    const contentEl = document.getElementById('material-modal-content');
+    if (m.content) {
+        contentEl.innerHTML = '<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.8;color:var(--text);margin:0;">' + escapeHtml(m.content) + '</pre>';
+    } else {
+        contentEl.innerHTML = '<div class="empty-state">该资料暂无详细内容，可在上传资料时添加内容描述。</div>';
+    }
+    document.getElementById('material-modal').classList.remove('hidden');
 }
 
 function showUploadModal() {
@@ -725,12 +753,23 @@ function renderPastPapers() {
 
 function startMockExam(id) {
     const paper = PAST_PAPERS.find(p => p.id === id);
-    showToast(`开始 ${paper.subject} 模考！（演示模式：从题库抽取相关题目）`);
-    setTimeout(() => {
-        document.getElementById('quiz-subject').value = paper.subject;
-        navigateTo('quiz');
-        startQuiz('random');
-    }, 500);
+    if (!paper) { showToast('试卷不存在'); return; }
+    showToast(`开始 ${paper.subject} 模考：${paper.year} ${paper.seasonName} ${p.paper}`);
+    // 直接切换到刷题页面，不经过navigateTo避免resetQuizSetup干扰
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.page === 'quiz');
+    });
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-quiz').classList.add('active');
+    document.getElementById('page-title').textContent = `模考：${paper.subject} ${paper.year} ${paper.seasonName}`;
+    if (window.innerWidth <= 768) closeSidebar();
+    // 设置科目筛选
+    document.getElementById('quiz-subject').value = paper.subject;
+    document.getElementById('quiz-difficulty').value = 'all';
+    document.getElementById('quiz-count').value = '0'; // 全部题目
+    document.getElementById('quiz-hot-only').checked = false;
+    // 直接开始刷题
+    startQuiz('random');
 }
 
 // ========== 智能复习 ==========
