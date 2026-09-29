@@ -1,514 +1,1309 @@
-/* IGCSE 智能备考平台 - 主应用逻辑 */
+/* ========================================
+   IGCSE 智能备考平台 - 主应用逻辑
+   ======================================== */
+
+// ========== 全局状态 ==========
+let currentUser = null;
+let currentPage = 'dashboard';
+let quizState = {
+    questions: [],
+    currentIndex: 0,
+    answers: [],
+    startTime: null,
+    timerInterval: null,
+    elapsedSeconds: 0,
+    selectedOption: null,
+    submitted: false,
+};
+let flashcardState = {
+    deck: null,
+    cards: [],
+    currentIndex: 0,
+    flipped: false,
+};
+let reviewState = {
+    items: [],
+    currentIndex: 0,
+};
+
+// ========== 数据存储 ==========
 const STORAGE_KEY = 'igcse_study_platform';
-let appState = { user: null, currentPage: 'dashboard', quiz: null, flashcard: null, settings: { darkMode: false, examDate: '2027-05-15', notifications: true } };
 
-function init() {
-  loadState();
-  if (appState.user) { showApp(); } else { showLogin(); }
-  setupEventListeners();
-  updateCountdown();
-  setInterval(updateCountdown, 60000);
+function loadData() {
+    try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : getDefaultData();
+    } catch (e) {
+        return getDefaultData();
+    }
 }
 
-function loadState() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) { try { appState = { ...appState, ...JSON.parse(saved) }; } catch(e) { console.error('Load error', e); } }
-}
-function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appState)); }
-
-function showLogin() {
-  document.getElementById('loginPage').classList.remove('hidden');
-  document.getElementById('app').classList.add('hidden');
-}
-function showApp() {
-  document.getElementById('loginPage').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  document.getElementById('userNameDisplay').textContent = appState.user.name;
-  document.getElementById('userRoleDisplay').textContent = appState.user.role === 'owner' ? '所有者' : appState.user.role === 'collab' ? '协作者' : '访客';
-  document.getElementById('userAvatar').textContent = appState.user.name.charAt(0).toUpperCase();
-  applyDarkMode();
-  navigateTo('dashboard');
+function saveData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-function setupEventListeners() {
-  document.querySelectorAll('.login-tab').forEach(tab => {
+function getDefaultData() {
+    return {
+        users: [{ email: 'demo@igcse.com', password: '123456', name: 'Demo User', board: 'cie', role: 'owner' }],
+        currentUser: null,
+        quizRecords: [],
+        wrongQuestions: [],
+        srsData: {},
+        flashcards: JSON.parse(JSON.stringify(FLASHCARD_DECKS)),
+        materials: JSON.parse(JSON.stringify(MATERIALS_DATA)),
+        settings: {
+            siteName: '我的IGCSE备考空间',
+            board: 'cie',
+            examDate: '2027-05-15',
+            darkMode: false,
+            reminder: true,
+            remindTime: '20:00',
+        },
+        dailyStats: {},
+        studyTime: 0,
+        streak: 0,
+        lastStudyDate: null,
+    };
+}
+
+let appData = loadData();
+
+// ========== 工具函数 ==========
+function showToast(message, duration = 2500) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), duration);
+}
+
+function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function getTodayStr() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function getDaysUntil(dateStr) {
+    const target = new Date(dateStr);
+    const now = new Date();
+    return Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+}
+
+function shuffleArray(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+// ========== 登录系统 ==========
+document.querySelectorAll('.login-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.login-form').forEach(f => f.classList.remove('active'));
-      tab.classList.add('active');
-      document.getElementById(tab.dataset.tab + 'Form').classList.add('active');
+        document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.login-form').forEach(f => f.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab + '-form').classList.add('active');
     });
-  });
-  document.getElementById('loginBtn').addEventListener('click', handleLogin);
-  document.getElementById('guestBtn').addEventListener('click', handleGuest);
-  document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', () => navigateTo(item.dataset.page));
-  });
-  document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
-  document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
-  document.getElementById('darkModeToggle').addEventListener('change', toggleDarkMode);
-  document.getElementById('examDateInput').addEventListener('change', (e) => { appState.settings.examDate = e.target.value; saveState(); updateCountdown(); });
-  document.getElementById('quizStartBtn').addEventListener('click', startQuiz);
-  document.getElementById('quizNextBtn').addEventListener('click', nextQuestion);
-  document.getElementById('quizPrevBtn').addEventListener('click', prevQuestion);
-  document.getElementById('quizSubmitBtn').addEventListener('click', submitQuiz);
-  document.getElementById('quizRetryBtn').addEventListener('click', () => { appState.quiz = null; showQuizSetup(); });
-  document.getElementById('quizBackBtn').addEventListener('click', () => navigateTo('quiz'));
-  document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
-  document.getElementById('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
-  document.querySelectorAll('.suggestion-chip').forEach(chip => {
-    chip.addEventListener('click', () => { document.getElementById('chatInput').value = chip.textContent; sendChatMessage(); });
-  });
-  document.getElementById('flashcardFlipBtn').addEventListener('click', flipFlashcard);
-  document.getElementById('flashcardNextBtn').addEventListener('click', nextFlashcard);
-  document.getElementById('flashcardPrevBtn').addEventListener('click', prevFlashcard);
-  document.getElementById('flashcardBackBtn').addEventListener('click', () => { appState.flashcard = null; showFlashcardDecks(); });
-  document.getElementById('materialUploadBtn').addEventListener('click', () => document.getElementById('uploadModal').classList.remove('hidden'));
-  document.getElementById('uploadModalClose').addEventListener('click', () => document.getElementById('uploadModal').classList.add('hidden'));
-  document.getElementById('copyShareLink').addEventListener('click', copyShareLink);
-}
+});
 
 function handleLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  if (!email || !password) { showToast('请输入邮箱和密码'); return; }
-  appState.user = { name: email.split('@')[0], email, role: 'owner' };
-  saveState(); showApp(); showToast('登录成功，欢迎回来！');
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const user = appData.users.find(u => u.email === email && u.password === password);
+    if (user) {
+        currentUser = user;
+        appData.currentUser = user;
+        saveData(appData);
+        enterApp();
+        showToast('登录成功，欢迎回来！');
+    } else {
+        showToast('邮箱或密码错误');
+    }
 }
-function handleGuest() {
-  const code = document.getElementById('guestCode').value.trim();
-  if (!code) { showToast('请输入访问密码'); return; }
-  appState.user = { name: '访客' + Math.floor(Math.random()*100), email: 'guest@igcse.com', role: 'guest' };
-  saveState(); showApp(); showToast('以访客身份进入');
+
+function handleRegister() {
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const board = document.getElementById('reg-board').value;
+    if (!name || !email || !password) {
+        showToast('请填写完整信息');
+        return;
+    }
+    if (appData.users.find(u => u.email === email)) {
+        showToast('该邮箱已注册');
+        return;
+    }
+    const newUser = { email, password, name, board, role: 'owner' };
+    appData.users.push(newUser);
+    currentUser = newUser;
+    appData.currentUser = newUser;
+    appData.settings.board = board;
+    saveData(appData);
+    enterApp();
+    showToast('注册成功！');
 }
+
+function handleGuestLogin() {
+    const code = document.getElementById('guest-code').value;
+    const name = document.getElementById('guest-name').value.trim() || '访客';
+    if (code === 'guest123') {
+        currentUser = { name, role: 'guest', email: 'guest@temp.com' };
+        enterApp();
+        showToast('以访客身份进入');
+    } else {
+        showToast('访问密码错误');
+    }
+}
+
 function handleLogout() {
-  appState.user = null; saveState(); showLogin(); showToast('已退出登录');
+    currentUser = null;
+    appData.currentUser = null;
+    saveData(appData);
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('login-page').classList.remove('hidden');
+    if (quizState.timerInterval) clearInterval(quizState.timerInterval);
 }
 
+function enterApp() {
+    document.getElementById('login-page').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('user-name').textContent = currentUser.name;
+    document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+    document.getElementById('user-role').textContent = currentUser.role === 'owner' ? '所有者' : currentUser.role === 'collab' ? '协作者' : '访客';
+    document.getElementById('user-board').textContent = appData.settings.board.toUpperCase();
+    if (appData.settings.darkMode) document.body.classList.add('dark-mode');
+    updateCountdown();
+    populateFilters();
+    navigateTo('dashboard');
+}
+
+// ========== 导航 ==========
 function navigateTo(page) {
-  appState.currentPage = page;
-  document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.page === page));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
-  document.getElementById('pageTitle').textContent = getPageTitle(page);
-  if (window.innerWidth <= 768) { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
-  if (page === 'dashboard') renderDashboard();
-  if (page === 'materials') renderMaterials();
-  if (page === 'quiz') showQuizSetup();
-  if (page === 'pastpapers') renderPastPapers();
-  if (page === 'review') renderReview();
-  if (page === 'flashcards') showFlashcardDecks();
-  if (page === 'wrong') renderWrongBook();
-  if (page === 'analytics') renderAnalytics();
-  if (page === 'members') renderMembers();
-  if (page === 'settings') renderSettings();
-}
-function getPageTitle(page) {
-  const titles = { dashboard:'首页仪表盘', materials:'资料中心', quiz:'题库刷题', pastpapers:'历年真题', review:'智能复习', flashcards:'闪卡记忆', wrong:'错题本', chat:'AI问答', analytics:'学习分析', members:'成员管理', settings:'设置' };
-  return titles[page] || page;
-}
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('sidebarOverlay').classList.toggle('show');
-}
-function toggleDarkMode() {
-  appState.settings.darkMode = document.getElementById('darkModeToggle').checked;
-  saveState(); applyDarkMode();
-}
-function applyDarkMode() {
-  document.body.classList.toggle('dark-mode', appState.settings.darkMode);
-  document.getElementById('darkModeToggle').checked = appState.settings.darkMode;
-}
-function updateCountdown() {
-  const examDate = new Date(appState.settings.examDate);
-  const now = new Date();
-  const diff = Math.ceil((examDate - now) / (1000*60*60*24));
-  document.getElementById('countdownValue').textContent = diff > 0 ? diff : 0;
+    currentPage = page;
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.page === page);
+    });
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const pageEl = document.getElementById('page-' + page);
+    if (pageEl) pageEl.classList.add('active');
+    const titles = {
+        dashboard: '首页仪表盘', materials: '资料中心', quiz: '题库刷题',
+        pastpapers: '历年真题', review: '智能复习', flashcards: '闪卡记忆',
+        wrongbook: '错题本', aichat: 'AI 问答', analytics: '学习分析',
+        members: '成员管理', settings: '设置'
+    };
+    document.getElementById('page-title').textContent = titles[page] || '';
+    if (window.innerWidth <= 768) closeSidebar();
+    renderPage(page);
 }
 
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => navigateTo(item.dataset.page));
+});
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('show');
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('show');
+}
+
+// ========== 页面渲染调度 ==========
+function renderPage(page) {
+    switch (page) {
+        case 'dashboard': renderDashboard(); break;
+        case 'materials': renderMaterials(); break;
+        case 'quiz': resetQuizSetup(); break;
+        case 'pastpapers': renderPastPapers(); break;
+        case 'review': renderReview(); break;
+        case 'flashcards': renderFlashcards(); break;
+        case 'wrongbook': renderWrongBook(); break;
+        case 'analytics': renderAnalytics(); break;
+        case 'members': renderMembers(); break;
+        case 'settings': loadSettingsForm(); break;
+    }
+}
+
+function populateFilters() {
+    const subjects = [...new Set(QUESTION_BANK.map(q => q.subject))];
+    ['material-subject-filter', 'quiz-subject', 'wrong-filter', 'upload-subject', 'card-subject', 'pp-subject'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const currentVal = sel.value;
+        sel.innerHTML = id === 'quiz-subject' || id === 'material-subject-filter' || id === 'wrong-filter' || id === 'pp-subject'
+            ? '<option value="all">全部科目</option>' : '';
+        subjects.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s; opt.textContent = s;
+            sel.appendChild(opt);
+        });
+        if (currentVal) sel.value = currentVal;
+    });
+}
+
+// ========== 首页仪表盘 ==========
 function renderDashboard() {
-  const totalQuestions = QUESTION_BANK.length;
-  const wrongCount = (appState.wrongBook || []).length;
-  const reviewDue = calculateReviewDue();
-  document.getElementById('statQuestions').textContent = totalQuestions;
-  document.getElementById('statWrong').textContent = wrongCount;
-  document.getElementById('statReview').textContent = reviewDue;
-  document.getElementById('statMaterials').textContent = MATERIALS_DATA.length;
-  renderTaskList();
-  renderRecentWrong();
-  renderWeeklyChart();
+    const records = appData.quizRecords;
+    const totalQ = records.reduce((sum, r) => sum + r.total, 0);
+    const correctQ = records.reduce((sum, r) => sum + r.correct, 0);
+    const accuracy = totalQ > 0 ? Math.round(correctQ / totalQ * 100) : 0;
+
+    document.getElementById('stat-total-questions').textContent = totalQ;
+    document.getElementById('stat-accuracy').textContent = accuracy + '%';
+    document.getElementById('stat-streak').textContent = appData.streak;
+    document.getElementById('stat-time').textContent = Math.floor(appData.studyTime / 60) + 'h';
+
+    const dueCount = getDueReviewCount();
+    const wrongCount = appData.wrongQuestions.length;
+    const tasks = [];
+    if (dueCount > 0) tasks.push({ text: `智能复习：${dueCount} 道题目待复习`, done: false, action: "navigateTo('review')" });
+    if (wrongCount > 0) tasks.push({ text: `错题重练：${wrongCount} 道错题等待攻克`, done: false, action: "navigateTo('wrongbook')" });
+    tasks.push({ text: '每日一练：完成 10 道题目', done: totalQ > 0 && (appData.dailyStats[getTodayStr()]?.questions || 0) >= 10, action: "navigateTo('quiz')" });
+    tasks.push({ text: '闪卡复习：复习 10 张闪卡', done: false, action: "navigateTo('flashcards')" });
+
+    const tasksEl = document.getElementById('today-tasks');
+    if (tasks.length === 0) {
+        tasksEl.innerHTML = '<div class="empty-state">暂无任务，去刷题吧！</div>';
+    } else {
+        tasksEl.innerHTML = tasks.map((t, i) => `
+            <div class="task-item" onclick="${t.action}">
+                <div class="task-check ${t.done ? 'done' : ''}">${t.done ? '✓' : ''}</div>
+                <span class="task-text">${t.text}</span>
+            </div>
+        `).join('');
+    }
+
+    const recentWrong = appData.wrongQuestions.slice(-3).reverse();
+    const wrongEl = document.getElementById('recent-wrong');
+    if (recentWrong.length === 0) {
+        wrongEl.innerHTML = '<div class="empty-state">暂无错题记录</div>';
+    } else {
+        wrongEl.innerHTML = recentWrong.map(w => `
+            <div class="wrong-item-mini" onclick="navigateTo('wrongbook')">
+                <span class="wim-subject">${w.subject} · ${w.topic}</span>
+                <div class="wim-text">${w.question.length > 50 ? w.question.substring(0, 50) + '...' : w.question}</div>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('review-badge').textContent = dueCount;
+    document.getElementById('review-badge').style.display = dueCount > 0 ? 'inline-block' : 'none';
+    document.getElementById('wrong-badge').textContent = wrongCount;
+    document.getElementById('wrong-badge').style.display = wrongCount > 0 ? 'inline-block' : 'none';
+
+    renderSubjectChart();
 }
-function calculateReviewDue() {
-  const srs = appState.srsData || {};
-  const now = Date.now();
-  return Object.values(srs).filter(item => item.nextReview <= now).length;
+
+function renderSubjectChart() {
+    const canvas = document.getElementById('subject-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const subjects = [...new Set(QUESTION_BANK.map(q => q.subject))];
+    const data = subjects.map(s => {
+        const recs = appData.quizRecords.filter(r => r.subject === s || r.questions?.some(q => q.subject === s));
+        const total = recs.reduce((sum, r) => sum + (r.total || 0), 0);
+        const correct = recs.reduce((sum, r) => sum + (r.correct || 0), 0);
+        return total > 0 ? Math.round(correct / total * 100) : 0;
+    });
+
+    const W = canvas.width = canvas.offsetWidth;
+    const H = canvas.height = canvas.offsetHeight;
+    ctx.clearRect(0, 0, W, H);
+    const barW = W / subjects.length * 0.5;
+    const gap = W / subjects.length;
+    const maxH = H - 40;
+
+    subjects.forEach((s, i) => {
+        const h = (data[i] / 100) * maxH;
+        const x = i * gap + (gap - barW) / 2;
+        const y = H - h - 20;
+        const gradient = ctx.createLinearGradient(x, y, x, H - 20);
+        gradient.addColorStop(0, '#2980b9');
+        gradient.addColorStop(1, '#3498db');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.roundRect(x, y, barW, h, [4, 4, 0, 0]);
+        ctx.fill();
+        ctx.fillStyle = '#2c3e50';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(data[i] + '%', x + barW / 2, y - 6);
+        ctx.fillStyle = '#7f8c8d';
+        ctx.fillText(s, x + barW / 2, H - 5);
+    });
 }
-function renderTaskList() {
-  const tasks = appState.tasks || [
-    { id:1, text:'完成数学代数章节练习', done:false, meta:'10题' },
-    { id:2, text:'复习物理力学公式', done:true, meta:'闪卡' },
-    { id:3, text:'做一套化学真题', done:false, meta:'45分钟' }
-  ];
-  const container = document.getElementById('taskList');
-  container.innerHTML = tasks.map(t => `<div class="task-item"><div class="task-check ${t.done?'done':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div><span class="task-text">${t.text}</span><span class="task-meta">${t.meta}</span></div>`).join('');
+
+function updateCountdown() {
+    const days = getDaysUntil(appData.settings.examDate);
+    document.getElementById('countdown-days').textContent = days > 0 ? days : 0;
 }
-function toggleTask(id) {
-  if (!appState.tasks) appState.tasks = [];
-  const task = appState.tasks.find(t => t.id === id);
-  if (task) { task.done = !task.done; saveState(); renderTaskList(); }
-}
-function renderRecentWrong() {
-  const wrong = (appState.wrongBook || []).slice(0, 5);
-  const container = document.getElementById('recentWrongList');
-  if (wrong.length === 0) { container.innerHTML = '<div class="empty-state">暂无错题，继续加油！</div>'; return; }
-  container.innerHTML = wrong.map(w => `<div class="wrong-item-mini"><div class="wim-subject">${w.subject} · ${w.topic}</div><div class="wim-text">${w.question.substring(0,50)}...</div></div>`).join('');
-}
-function renderWeeklyChart() {
-  const canvas = document.getElementById('weeklyChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const data = [12, 19, 8, 15, 22, 10, 18];
-  const labels = ['一','二','三','四','五','六','日'];
-  const max = Math.max(...data);
-  const w = canvas.width = canvas.offsetWidth;
-  const h = canvas.height = canvas.offsetHeight;
-  ctx.clearRect(0,0,w,h);
-  const barW = w / data.length * 0.6;
-  const gap = w / data.length * 0.4;
-  data.forEach((v,i) => {
-    const barH = (v/max) * (h-40);
-    const x = i * (barW+gap) + gap/2;
-    const y = h - barH - 20;
-    const grad = ctx.createLinearGradient(0,y,0,h-20);
-    grad.addColorStop(0,'#3498db'); grad.addColorStop(1,'#2980b9');
-    ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.roundRect(x,y,barW,barH,4); ctx.fill();
-    ctx.fillStyle = '#7f8c8d'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(labels[i], x+barW/2, h-5);
-    ctx.fillStyle = '#2c3e50'; ctx.fillText(v, x+barW/2, y-5);
-  });
+
+// ========== 资料中心 ==========
+let materialFilter = 'all';
+
+function filterMaterials(type) {
+    materialFilter = type;
+    document.querySelectorAll('.material-tab').forEach(t => t.classList.toggle('active', t.dataset.type === type));
+    renderMaterials();
 }
 
 function renderMaterials() {
-  const filter = document.getElementById('materialFilter') ? document.getElementById('materialFilter').value : 'all';
-  let materials = MATERIALS_DATA;
-  if (filter !== 'all') materials = materials.filter(m => m.type === filter);
-  const container = document.getElementById('materialsGrid');
-  container.innerHTML = materials.map(m => `<div class="material-card"><div class="material-icon">${m.icon}</div><div class="material-name">${m.name}</div><div class="material-meta">${m.tags.map(t=>`<span class="material-tag">${t}</span>`).join('')}</div><div class="material-info"><span>${m.subject}</span><span>${m.size}</span></div></div>`).join('');
+    const subjectFilter = document.getElementById('material-subject-filter')?.value || 'all';
+    let materials = appData.materials;
+    if (materialFilter !== 'all') materials = materials.filter(m => m.type === materialFilter);
+    if (subjectFilter !== 'all') materials = materials.filter(m => m.subject === subjectFilter);
+
+    const grid = document.getElementById('materials-grid');
+    if (materials.length === 0) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">暂无资料，点击上方按钮上传</div>';
+        return;
+    }
+    const typeNames = { notes: '讲义笔记', pastpaper: '历年真题', markscheme: '评分标准', summary: '考点总结', other: '其他' };
+    grid.innerHTML = materials.map(m => `
+        <div class="material-card">
+            <div class="material-icon">${m.icon}</div>
+            <div class="material-name">${m.name}</div>
+            <div class="material-meta">
+                <span class="material-tag">${m.subject}</span>
+                <span class="material-tag">${typeNames[m.type] || m.type}</span>
+                ${(m.tags || []).map(t => `<span class="material-tag">${t}</span>`).join('')}
+            </div>
+            <div class="material-info">
+                <span>${m.size}</span>
+                <span>${m.date}</span>
+            </div>
+        </div>
+    `).join('');
 }
 
-function showQuizSetup() {
-  document.getElementById('quizSetup').classList.remove('hidden');
-  document.getElementById('quizArea').classList.add('hidden');
-  document.getElementById('quizResult').classList.add('hidden');
-  const subjects = [...new Set(QUESTION_BANK.map(q=>q.subject))];
-  const select = document.getElementById('quizSubject');
-  select.innerHTML = '<option value="all">全部科目</option>' + subjects.map(s=>`<option value="${s}">${s}</option>`).join('');
+function showUploadModal() {
+    document.getElementById('upload-modal').classList.remove('hidden');
 }
-function startQuiz() {
-  const subject = document.getElementById('quizSubject').value;
-  const mode = document.getElementById('quizMode').value;
-  const count = parseInt(document.getElementById('quizCount').value);
-  let questions = subject === 'all' ? [...QUESTION_BANK] : QUESTION_BANK.filter(q=>q.subject===subject);
-  if (mode === 'random') questions.sort(()=>Math.random()-0.5);
-  if (mode === 'wrong') { const wrongIds = (appState.wrongBook||[]).map(w=>w.id); questions = questions.filter(q=>wrongIds.includes(q.id)); if(questions.length===0){showToast('暂无错题记录');return;} }
-  questions = questions.slice(0, count);
-  if (questions.length === 0) { showToast('没有符合条件的题目'); return; }
-  appState.quiz = { questions, currentIndex:0, answers:[], startTime:Date.now(), mode };
-  saveState();
-  document.getElementById('quizSetup').classList.add('hidden');
-  document.getElementById('quizArea').classList.remove('hidden');
-  renderQuestion();
+
+function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
 }
+
+function confirmUpload() {
+    const name = document.getElementById('upload-name').value.trim();
+    const subject = document.getElementById('upload-subject').value;
+    const type = document.getElementById('upload-type').value;
+    const tags = document.getElementById('upload-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+    if (!name) { showToast('请输入资料名称'); return; }
+    const icons = { notes: '📖', pastpaper: '📄', markscheme: '✅', summary: '📋', other: '📁' };
+    appData.materials.push({
+        id: 'mat' + Date.now(),
+        name, subject, type, tags,
+        icon: icons[type] || '📁',
+        size: (Math.random() * 5 + 0.5).toFixed(1) + ' MB',
+        date: getTodayStr(),
+    });
+    saveData(appData);
+    closeModal('upload-modal');
+    document.getElementById('upload-name').value = '';
+    document.getElementById('upload-tags').value = '';
+    renderMaterials();
+    showToast('资料上传成功！');
+}
+
+// ========== 刷题模块 ==========
+function resetQuizSetup() {
+    document.getElementById('quiz-setup').classList.remove('hidden');
+    document.getElementById('quiz-playing').classList.add('hidden');
+    document.getElementById('quiz-result').classList.add('hidden');
+}
+
+function startQuiz(mode) {
+    let questions = [...QUESTION_BANK];
+    const subject = document.getElementById('quiz-subject').value;
+    const difficulty = document.getElementById('quiz-difficulty').value;
+    const count = parseInt(document.getElementById('quiz-count').value);
+
+    if (subject !== 'all') questions = questions.filter(q => q.subject === subject);
+    if (difficulty !== 'all') questions = questions.filter(q => q.difficulty === difficulty);
+
+    if (mode === 'wrong') {
+        const wrongIds = appData.wrongQuestions.map(w => w.id);
+        questions = QUESTION_BANK.filter(q => wrongIds.includes(q.id));
+        if (questions.length === 0) { showToast('暂无错题，先去做一些题吧'); return; }
+    } else if (mode === 'weak') {
+        const weakTopics = getWeakTopics();
+        if (weakTopics.length === 0) { showToast('暂无薄弱点数据'); return; }
+        questions = questions.filter(q => weakTopics.includes(q.topic));
+    } else if (mode === 'random') {
+        questions = shuffleArray(questions);
+    }
+
+    if (questions.length === 0) { showToast('没有符合条件的题目'); return; }
+    if (count > 0 && count < questions.length) questions = questions.slice(0, count);
+
+    quizState = {
+        questions,
+        currentIndex: 0,
+        answers: new Array(questions.length).fill(null),
+        startTime: Date.now(),
+        timerInterval: null,
+        elapsedSeconds: 0,
+        selectedOption: null,
+        submitted: false,
+    };
+
+    document.getElementById('quiz-setup').classList.add('hidden');
+    document.getElementById('quiz-result').classList.add('hidden');
+    document.getElementById('quiz-playing').classList.remove('hidden');
+    document.getElementById('quiz-total').textContent = questions.length;
+
+    startQuizTimer();
+    renderQuestion();
+}
+
+function startQuizTimer() {
+    if (quizState.timerInterval) clearInterval(quizState.timerInterval);
+    quizState.timerInterval = setInterval(() => {
+        quizState.elapsedSeconds++;
+        document.getElementById('quiz-timer').textContent = formatTime(quizState.elapsedSeconds);
+    }, 1000);
+}
+
 function renderQuestion() {
-  const quiz = appState.quiz;
-  const q = quiz.questions[quiz.currentIndex];
-  document.getElementById('quizProgress').textContent = `第 ${quiz.currentIndex+1} / ${quiz.questions.length} 题`;
-  document.getElementById('quizProgressBar').style.width = ((quiz.currentIndex+1)/quiz.questions.length*100)+'%';
-  document.getElementById('questionSubject').textContent = q.subject;
-  document.getElementById('questionTopic').textContent = q.topic;
-  document.getElementById('questionDifficulty').textContent = {easy:'简单',medium:'中等',hard:'困难'}[q.difficulty];
-  document.getElementById('questionText').textContent = q.question;
-  const optionsHtml = q.options.map((opt,i) => `<div class="option-item" data-index="${i}" onclick="selectOption(${i})">
-    <span class="option-label">${String.fromCharCode(65+i)}</span><span class="option-text">${opt}</span></div>`).join('');
-  document.getElementById('optionsList').innerHTML = optionsHtml;
-  document.getElementById('questionResult').classList.add('hidden');
-  document.getElementById('quizPrevBtn').style.display = quiz.currentIndex > 0 ? 'inline-flex' : 'none';
-  document.getElementById('quizNextBtn').style.display = quiz.currentIndex < quiz.questions.length-1 ? 'inline-flex' : 'none';
-  document.getElementById('quizSubmitBtn').style.display = quiz.currentIndex === quiz.questions.length-1 ? 'inline-flex' : 'none';
+    const q = quizState.questions[quizState.currentIndex];
+    quizState.selectedOption = quizState.answers[quizState.currentIndex];
+    quizState.submitted = quizState.answers[quizState.currentIndex] !== null && quizState.answers[quizState.currentIndex] !== undefined;
+
+    document.getElementById('quiz-current').textContent = quizState.currentIndex + 1;
+    document.getElementById('quiz-progress-fill').style.width = ((quizState.currentIndex + 1) / quizState.questions.length * 100) + '%';
+    document.getElementById('q-subject').textContent = q.subject;
+    document.getElementById('q-difficulty').textContent = { easy: '简单', medium: '中等', hard: '困难' }[q.difficulty];
+    document.getElementById('q-topic').textContent = q.topic;
+    document.getElementById('question-text').textContent = q.question;
+
+    const optionsEl = document.getElementById('options-list');
+    optionsEl.innerHTML = q.options.map((opt, i) => {
+        let cls = 'option-item';
+        if (quizState.submitted) {
+            cls += ' disabled';
+            if (i === q.answer) cls += ' correct';
+            if (i === quizState.selectedOption && i !== q.answer) cls += ' wrong';
+        } else if (i === quizState.selectedOption) {
+            cls += ' selected';
+        }
+        return `<div class="${cls}" onclick="selectOption(${i})">
+            <div class="option-label">${String.fromCharCode(65 + i)}</div>
+            <div class="option-text">${opt}</div>
+        </div>`;
+    }).join('');
+
+    const resultEl = document.getElementById('question-result');
+    if (quizState.submitted) {
+        const isCorrect = quizState.selectedOption === q.answer;
+        resultEl.classList.remove('hidden');
+        document.getElementById('result-header').className = 'result-header ' + (isCorrect ? 'correct' : 'wrong');
+        document.getElementById('result-header').textContent = isCorrect ? '✅ 回答正确！' : '❌ 回答错误';
+        document.getElementById('result-answer').innerHTML = `正确答案：<b>${String.fromCharCode(65 + q.answer)}. ${q.options[q.answer]}</b>`;
+        document.getElementById('result-explanation').textContent = '解析：' + q.explanation;
+    } else {
+        resultEl.classList.add('hidden');
+    }
+
+    document.getElementById('btn-prev').style.display = quizState.currentIndex > 0 ? 'inline-flex' : 'none';
+    document.getElementById('btn-submit').style.display = !quizState.submitted ? 'inline-flex' : 'none';
+    document.getElementById('btn-next').style.display = quizState.submitted ? 'inline-flex' : 'none';
+    document.getElementById('btn-next').textContent = quizState.currentIndex === quizState.questions.length - 1 ? '查看结果' : '下一题';
 }
+
 function selectOption(index) {
-  const quiz = appState.quiz;
-  if (quiz.answers[quiz.currentIndex] !== undefined) return;
-  quiz.answers[quiz.currentIndex] = index;
-  const q = quiz.questions[quiz.currentIndex];
-  const isCorrect = index === q.answer;
-  document.querySelectorAll('.option-item').forEach((el,i) => {
-    el.classList.add('disabled');
-    if (i === q.answer) el.classList.add('correct');
-    if (i === index && !isCorrect) el.classList.add('wrong');
-  });
-  const resultEl = document.getElementById('questionResult');
-  resultEl.classList.remove('hidden');
-  resultEl.innerHTML = `<div class="result-header ${isCorrect?'correct':'wrong'}">${isCorrect?'✓ 回答正确！':'✗ 回答错误'}</div>
-    <div class="result-answer">正确答案：<strong>${String.fromCharCode(65+q.answer)}. ${q.options[q.answer]}</strong></div>
-    <div class="result-explanation"><strong>解析：</strong>${q.explanation}</div>`;
-  if (!isCorrect) addToWrongBook(q);
-  saveState();
-}
-function nextQuestion() { if(appState.quiz.currentIndex < appState.quiz.questions.length-1){appState.quiz.currentIndex++;renderQuestion();} }
-function prevQuestion() { if(appState.quiz.currentIndex > 0){appState.quiz.currentIndex--;renderQuestion();} }
-function submitQuiz() {
-  const quiz = appState.quiz;
-  const answered = quiz.answers.filter(a=>a!==undefined).length;
-  let correct = 0;
-  quiz.questions.forEach((q,i)=>{ if(quiz.answers[i]===q.answer) correct++; });
-  const score = Math.round(correct/quiz.questions.length*100);
-  document.getElementById('quizArea').classList.add('hidden');
-  document.getElementById('quizResult').classList.remove('hidden');
-  document.getElementById('resultScore').textContent = score;
-  document.getElementById('resultCorrect').textContent = correct;
-  document.getElementById('resultTotal').textContent = quiz.questions.length;
-  document.getElementById('resultAnswered').textContent = answered;
-  const circle = document.getElementById('scoreCircle');
-  const circumference = 2 * Math.PI * 60;
-  const offset = circumference - (score/100)*circumference;
-  circle.style.strokeDasharray = circumference;
-  circle.style.strokeDashoffset = offset;
-  circle.style.stroke = score >= 60 ? '#27ae60' : '#e74c3c';
-}
-function addToWrongBook(q) {
-  if (!appState.wrongBook) appState.wrongBook = [];
-  if (!appState.wrongBook.find(w=>w.id===q.id)) {
-    appState.wrongBook.push({ ...q, wrongCount:1, lastWrong:Date.now() });
-  } else {
-    const existing = appState.wrongBook.find(w=>w.id===q.id);
-    existing.wrongCount++; existing.lastWrong = Date.now();
-  }
+    if (quizState.submitted) return;
+    quizState.selectedOption = index;
+    document.querySelectorAll('.option-item').forEach((el, i) => {
+        el.classList.toggle('selected', i === index);
+    });
 }
 
+function submitAnswer() {
+    if (quizState.selectedOption === null) { showToast('请先选择一个答案'); return; }
+    quizState.answers[quizState.currentIndex] = quizState.selectedOption;
+    quizState.submitted = true;
+
+    const q = quizState.questions[quizState.currentIndex];
+    const isCorrect = quizState.selectedOption === q.answer;
+
+    const today = getTodayStr();
+    if (!appData.dailyStats[today]) appData.dailyStats[today] = { questions: 0, correct: 0 };
+    appData.dailyStats[today].questions++;
+    if (isCorrect) appData.dailyStats[today].correct++;
+
+    if (appData.lastStudyDate !== today) {
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        appData.streak = appData.lastStudyDate === yesterday ? appData.streak + 1 : 1;
+        appData.lastStudyDate = today;
+    }
+
+    if (!isCorrect) {
+        if (!appData.wrongQuestions.find(w => w.id === q.id)) {
+            appData.wrongQuestions.push({ ...q, wrongAnswer: quizState.selectedOption, reason: '', date: today });
+        }
+    } else {
+        appData.wrongQuestions = appData.wrongQuestions.filter(w => w.id !== q.id);
+    }
+
+    updateSRS(q.id, isCorrect);
+    saveData(appData);
+    renderQuestion();
+}
+
+function prevQuestion() {
+    if (quizState.currentIndex > 0) {
+        quizState.currentIndex--;
+        renderQuestion();
+    }
+}
+
+function nextQuestion() {
+    if (quizState.currentIndex < quizState.questions.length - 1) {
+        quizState.currentIndex++;
+        renderQuestion();
+    } else {
+        finishQuiz();
+    }
+}
+
+function finishQuiz() {
+    clearInterval(quizState.timerInterval);
+    const correct = quizState.answers.filter((a, i) => a === quizState.questions[i].answer).length;
+    const total = quizState.questions.length;
+    const percent = Math.round(correct / total * 100);
+
+    document.getElementById('quiz-playing').classList.add('hidden');
+    document.getElementById('quiz-result').classList.remove('hidden');
+
+    const circle = document.getElementById('score-circle');
+    const circumference = 339.292;
+    setTimeout(() => {
+        circle.style.strokeDashoffset = circumference * (1 - percent / 100);
+    }, 100);
+
+    document.getElementById('result-percent').textContent = percent + '%';
+    document.getElementById('result-grade').textContent = percent >= 90 ? 'A*' : percent >= 80 ? 'A' : percent >= 70 ? 'B' : percent >= 60 ? 'C' : percent >= 50 ? 'D' : 'F';
+    document.getElementById('result-correct').textContent = correct;
+    document.getElementById('result-wrong').textContent = total - correct;
+    document.getElementById('result-time').textContent = formatTime(quizState.elapsedSeconds);
+
+    appData.quizRecords.push({
+        date: getTodayStr(),
+        total, correct,
+        time: quizState.elapsedSeconds,
+        questions: quizState.questions,
+        answers: quizState.answers,
+    });
+    appData.studyTime += quizState.elapsedSeconds;
+    saveData(appData);
+}
+
+function restartQuiz() { resetQuizSetup(); }
+function reviewWrong() { navigateTo('wrongbook'); }
+function exitQuiz() {
+    if (confirm('确定要退出本次练习吗？进度将不会保存。')) {
+        clearInterval(quizState.timerInterval);
+        resetQuizSetup();
+    }
+}
+
+// ========== SRS 间隔重复 ==========
+function updateSRS(questionId, correct) {
+    if (!appData.srsData[questionId]) {
+        appData.srsData[questionId] = { interval: 1, repetitions: 0, easeFactor: 2.5, nextReview: getTodayStr(), lastReview: null };
+    }
+    const srs = appData.srsData[questionId];
+    const today = new Date();
+    if (correct) {
+        srs.repetitions++;
+        if (srs.repetitions === 1) srs.interval = 1;
+        else if (srs.repetitions === 2) srs.interval = 3;
+        else srs.interval = Math.round(srs.interval * srs.easeFactor);
+        srs.easeFactor = Math.min(3.0, srs.easeFactor + 0.1);
+    } else {
+        srs.repetitions = 0;
+        srs.interval = 1;
+        srs.easeFactor = Math.max(1.3, srs.easeFactor - 0.2);
+    }
+    const next = new Date(today);
+    next.setDate(next.getDate() + srs.interval);
+    srs.nextReview = next.toISOString().split('T')[0];
+    srs.lastReview = getTodayStr();
+}
+
+function getDueReviewCount() {
+    const today = getTodayStr();
+    return Object.entries(appData.srsData).filter(([id, srs]) => srs.nextReview <= today).length;
+}
+
+function getDueReviewItems() {
+    const today = getTodayStr();
+    const dueIds = Object.entries(appData.srsData)
+        .filter(([id, srs]) => srs.nextReview <= today)
+        .map(([id]) => id);
+    return QUESTION_BANK.filter(q => dueIds.includes(q.id));
+}
+
+// ========== 历年真题 ==========
 function renderPastPapers() {
-  const subject = document.getElementById('ppSubject') ? document.getElementById('ppSubject').value : 'all';
-  let papers = PAST_PAPERS;
-  if (subject !== 'all') papers = papers.filter(p=>p.subject===subject);
-  const container = document.getElementById('pastpapersList');
-  container.innerHTML = papers.map(p => `<div class="pastpaper-item">
-    <div class="pp-icon">📄</div><div class="pp-info">
-    <div class="pp-title">${p.subject} ${p.paper} (${p.variant})</div>
-    <div class="pp-meta"><span>📅 ${p.year} ${p.seasonName}</span><span>📝 ${p.questions}题</span><span>⏱ ${p.duration}</span><span>🔖 ${p.code}</span></div></div>
-    <button class="btn btn-outline btn-sm" onclick="showToast('真题功能演示：开始 ${p.code}')">开始练习</button></div>`).join('');
+    const subject = document.getElementById('pp-subject')?.value || 'all';
+    const year = document.getElementById('pp-year')?.value || 'all';
+    const season = document.getElementById('pp-season')?.value || 'all';
+    let papers = PAST_PAPERS;
+    if (subject !== 'all') papers = papers.filter(p => p.subject === subject);
+    if (year !== 'all') papers = papers.filter(p => p.year === year);
+    if (season !== 'all') papers = papers.filter(p => p.season === season);
+
+    const list = document.getElementById('pastpapers-list');
+    if (papers.length === 0) {
+        list.innerHTML = '<div class="empty-state">没有符合条件的真题</div>';
+        return;
+    }
+    list.innerHTML = papers.map(p => `
+        <div class="pastpaper-item">
+            <div class="pp-icon">📄</div>
+            <div class="pp-info">
+                <div class="pp-title">${p.subject} ${p.year} ${p.seasonName} - ${p.paper} (Variant ${p.variant})</div>
+                <div class="pp-meta">
+                    <span>📋 ${p.questions} 题</span>
+                    <span>⏱ ${p.duration}</span>
+                    <span>📝 代码: ${p.code}</span>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="startMockExam('${p.id}')">开始模考</button>
+        </div>
+    `).join('');
 }
 
+function startMockExam(id) {
+    const paper = PAST_PAPERS.find(p => p.id === id);
+    showToast(`开始 ${paper.subject} 模考！（演示模式：从题库抽取相关题目）`);
+    setTimeout(() => {
+        document.getElementById('quiz-subject').value = paper.subject;
+        navigateTo('quiz');
+        startQuiz('random');
+    }, 500);
+}
+
+// ========== 智能复习 ==========
 function renderReview() {
-  const srs = appState.srsData || {};
-  const now = Date.now();
-  const due = Object.values(srs).filter(i=>i.nextReview<=now).length;
-  const learning = Object.values(srs).filter(i=>i.interval<7).length;
-  const mastered = Object.values(srs).filter(i=>i.interval>=21).length;
-  document.getElementById('reviewDue').textContent = due;
-  document.getElementById('reviewLearning').textContent = learning;
-  document.getElementById('reviewMastered').textContent = mastered;
-  const tasksHtml = `<div class="review-task-item"><span class="rt-icon">🔴</span><div class="rt-info"><div class="rt-title">今日待复习题目</div><div class="rt-meta">基于间隔重复算法</div></div><span class="rt-count">${due}</span></div>
-    <div class="review-task-item"><span class="rt-icon">🟡</span><div class="rt-info"><div class="rt-title">学习中知识点</div><div class="rt-meta">间隔小于7天</div></div><span class="rt-count">${learning}</span></div>
-    <div class="review-task-item"><span class="rt-icon">🟢</span><div class="rt-info"><div class="rt-title">已掌握内容</div><div class="rt-meta">间隔大于21天</div></div><span class="rt-count">${mastered}</span></div>`;
-  document.getElementById('reviewTasks').innerHTML = tasksHtml;
-  const subjects = [...new Set(QUESTION_BANK.map(q=>q.subject))];
-  const barsHtml = subjects.map(s => {
-    const total = QUESTION_BANK.filter(q=>q.subject===s).length;
-    const masteredCount = Math.floor(total * (0.3 + Math.random()*0.4));
-    const pct = Math.round(masteredCount/total*100);
-    return `<div class="memory-bar-item"><span class="mb-label">${s}</span><div class="mb-track"><div class="mb-fill" style="width:${pct}%;background:linear-gradient(90deg,#27ae60,#2ecc71)"></div></div><span class="mb-count">${pct}%</span></div>`;
-  }).join('');
-  document.getElementById('memoryBars').innerHTML = barsHtml;
+    const dueItems = getDueReviewItems();
+    const totalSrs = Object.keys(appData.srsData).length;
+    const mastered = Object.values(appData.srsData).filter(s => s.interval >= 21).length;
+    const learning = totalSrs - mastered;
+
+    document.getElementById('review-due-today').textContent = dueItems.length;
+    document.getElementById('review-mastered').textContent = mastered;
+    document.getElementById('review-learning').textContent = learning || totalSrs;
+
+    const tasksEl = document.getElementById('review-tasks');
+    if (dueItems.length === 0) {
+        tasksEl.innerHTML = '<div class="empty-state">今日没有需要复习的内容，去学习新知识吧！</div>';
+        document.getElementById('start-review-btn').style.display = 'none';
+    } else {
+        const bySubject = {};
+        dueItems.forEach(q => {
+            if (!bySubject[q.subject]) bySubject[q.subject] = [];
+            bySubject[q.subject].push(q);
+        });
+        tasksEl.innerHTML = Object.entries(bySubject).map(([sub, qs]) => `
+            <div class="review-task-item">
+                <div class="rt-icon">📖</div>
+                <div class="rt-info">
+                    <div class="rt-title">${sub} 复习</div>
+                    <div class="rt-meta">${qs.length} 道题目待复习</div>
+                </div>
+                <div class="rt-count">${qs.length}</div>
+            </div>
+        `).join('');
+        document.getElementById('start-review-btn').style.display = 'inline-flex';
+    }
+
+    const bars = [
+        { label: '未掌握', count: Object.values(appData.srsData).filter(s => s.interval <= 1).length, color: '#e74c3c' },
+        { label: '学习中', count: Object.values(appData.srsData).filter(s => s.interval > 1 && s.interval < 7).length, color: '#f39c12' },
+        { label: '熟悉', count: Object.values(appData.srsData).filter(s => s.interval >= 7 && s.interval < 21).length, color: '#3498db' },
+        { label: '已掌握', count: mastered, color: '#27ae60' },
+    ];
+    const maxCount = Math.max(...bars.map(b => b.count), 1);
+    document.getElementById('memory-bars').innerHTML = bars.map(b => `
+        <div class="memory-bar-item">
+            <span class="mb-label">${b.label}</span>
+            <div class="mb-track"><div class="mb-fill" style="width:${b.count / maxCount * 100}%;background:${b.color}"></div></div>
+            <span class="mb-count">${b.count}</span>
+        </div>
+    `).join('');
 }
 
-function showFlashcardDecks() {
-  document.getElementById('flashcardDecks').classList.remove('hidden');
-  document.getElementById('flashcardStudy').classList.add('hidden');
-  const container = document.getElementById('flashcardDecksList');
-  container.innerHTML = FLASHCARD_DECKS.map(d => `<div class="deck-card" onclick="startFlashcard('${d.id}')">
-    <div class="deck-icon">${d.icon}</div><div class="deck-name">${d.name}</div><div class="deck-count">${d.cards.length} 张卡片 · ${d.subject}</div></div>`).join('');
+function startReviewSession() {
+    const dueItems = getDueReviewItems();
+    if (dueItems.length === 0) { showToast('没有需要复习的内容'); return; }
+    quizState = {
+        questions: dueItems,
+        currentIndex: 0,
+        answers: new Array(dueItems.length).fill(null),
+        startTime: Date.now(),
+        timerInterval: null,
+        elapsedSeconds: 0,
+        selectedOption: null,
+        submitted: false,
+    };
+    document.getElementById('page-review').classList.remove('active');
+    document.getElementById('page-quiz').classList.add('active');
+    document.getElementById('quiz-setup').classList.add('hidden');
+    document.getElementById('quiz-result').classList.add('hidden');
+    document.getElementById('quiz-playing').classList.remove('hidden');
+    document.getElementById('quiz-total').textContent = dueItems.length;
+    document.getElementById('page-title').textContent = '智能复习';
+    startQuizTimer();
+    renderQuestion();
 }
+
+// ========== 闪卡 ==========
+function renderFlashcards() {
+    document.getElementById('flashcard-study').classList.add('hidden');
+    document.getElementById('flashcard-decks').classList.remove('hidden');
+    document.getElementById('flashcard-decks').innerHTML = appData.flashcards.map(d => `
+        <div class="deck-card" onclick="startFlashcard('${d.id}')">
+            <div class="deck-icon">${d.icon}</div>
+            <div class="deck-name">${d.name}</div>
+            <div class="deck-count">${d.cards.length} 张卡片</div>
+        </div>
+    `).join('');
+}
+
 function startFlashcard(deckId) {
-  const deck = FLASHCARD_DECKS.find(d=>d.id===deckId);
-  if (!deck) return;
-  appState.flashcard = { deck, currentIndex:0, flipped:false };
-  saveState();
-  document.getElementById('flashcardDecks').classList.add('hidden');
-  document.getElementById('flashcardStudy').classList.remove('hidden');
-  renderFlashcard();
-}
-function renderFlashcard() {
-  const fc = appState.flashcard;
-  const card = fc.deck.cards[fc.currentIndex];
-  document.getElementById('flashcardFront').textContent = card.front;
-  document.getElementById('flashcardBack').textContent = card.back;
-  document.getElementById('flashcardProgress').textContent = `第 ${fc.currentIndex+1} / ${fc.deck.cards.length} 张`;
-  document.getElementById('flashcardElement').classList.toggle('flipped', fc.flipped);
-}
-function flipFlashcard() { appState.flashcard.flipped = !appState.flashcard.flipped; renderFlashcard(); }
-function nextFlashcard() {
-  if (appState.flashcard.currentIndex < appState.flashcard.deck.cards.length-1) {
-    appState.flashcard.currentIndex++; appState.flashcard.flipped=false; renderFlashcard();
-  } else { showToast('已完成本组闪卡！'); }
-}
-function prevFlashcard() {
-  if (appState.flashcard.currentIndex > 0) {
-    appState.flashcard.currentIndex--; appState.flashcard.flipped=false; renderFlashcard();
-  }
+    const deck = appData.flashcards.find(d => d.id === deckId);
+    if (!deck || deck.cards.length === 0) { showToast('该卡组没有卡片'); return; }
+    flashcardState = {
+        deck,
+        cards: shuffleArray(deck.cards),
+        currentIndex: 0,
+        flipped: false,
+    };
+    document.getElementById('flashcard-decks').classList.add('hidden');
+    document.getElementById('flashcard-study').classList.remove('hidden');
+    document.getElementById('card-total').textContent = flashcardState.cards.length;
+    renderFlashcard();
 }
 
-function renderWrongBook() {
-  const wrong = appState.wrongBook || [];
-  document.getElementById('wrongTotal').textContent = wrong.length;
-  document.getElementById('wrongToday').textContent = wrong.filter(w=>Date.now()-w.lastWrong<86400000).length;
-  const subjects = {};
-  wrong.forEach(w=>{ subjects[w.subject]=(subjects[w.subject]||0)+1; });
-  document.getElementById('wrongSubjects').textContent = Object.keys(subjects).length;
-  document.getElementById('wrongMastered').textContent = wrong.filter(w=>w.wrongCount>=3).length;
-  const container = document.getElementById('wrongList');
-  if (wrong.length === 0) { container.innerHTML = '<div class="empty-state">暂无错题记录，太棒了！</div>'; return; }
-  container.innerHTML = wrong.map(w => `<div class="wrong-item">
-    <div class="wrong-header"><span class="q-badge">${w.subject}</span><span class="q-badge">${w.topic}</span><span class="q-badge">错误${w.wrongCount}次</span></div>
-    <div class="wrong-question">${w.question}</div>
-    <div class="wrong-answer-row"><span class="wa-wrong">你的答案：${w.options[w.answers?w.answers[0]:0]||'未作答'}</span><span class="wa-correct">正确答案：${w.options[w.answer]}</span></div>
-    <div class="result-explanation">${w.explanation}</div>
-    <div class="wrong-reason-select"><button class="reason-btn" onclick="markWrongMastered('${w.id}')">已掌握，移除</button></div></div>`).join('');
+function renderFlashcard() {
+    const card = flashcardState.cards[flashcardState.currentIndex];
+    document.getElementById('card-front').textContent = card.front;
+    document.getElementById('card-back').textContent = card.back;
+    document.getElementById('card-current').textContent = flashcardState.currentIndex + 1;
+    document.getElementById('flashcard').classList.remove('flipped');
+    flashcardState.flipped = false;
 }
-function markWrongMastered(id) {
-  appState.wrongBook = (appState.wrongBook||[]).filter(w=>w.id!==id);
-  saveState(); renderWrongBook(); showToast('已从错题本移除');
+
+function flipCard() {
+    flashcardState.flipped = !flashcardState.flipped;
+    document.getElementById('flashcard').classList.toggle('flipped');
+}
+
+function rateCard(rating) {
+    flashcardState.currentIndex++;
+    if (flashcardState.currentIndex >= flashcardState.cards.length) {
+        showToast('🎉 本组闪卡复习完成！');
+        renderFlashcards();
+    } else {
+        renderFlashcard();
+    }
+}
+
+function exitFlashcard() { renderFlashcards(); }
+
+function showAddCardModal() {
+    document.getElementById('addcard-modal').classList.remove('hidden');
+}
+
+function saveFlashcard() {
+    const subject = document.getElementById('card-subject').value;
+    const front = document.getElementById('card-front-input').value.trim();
+    const back = document.getElementById('card-back-input').value.trim();
+    if (!front || !back) { showToast('请填写正反面内容'); return; }
+    let deck = appData.flashcards.find(d => d.subject === subject);
+    if (!deck) {
+        deck = { id: 'deck_' + Date.now(), subject, name: subject + '闪卡', icon: '🃏', cards: [] };
+        appData.flashcards.push(deck);
+    }
+    deck.cards.push({ front, back });
+    saveData(appData);
+    closeModal('addcard-modal');
+    document.getElementById('card-front-input').value = '';
+    document.getElementById('card-back-input').value = '';
+    renderFlashcards();
+    showToast('闪卡已添加！');
+}
+
+// ========== 错题本 ==========
+function renderWrongBook() {
+    const subject = document.getElementById('wrong-filter')?.value || 'all';
+    let wrongs = appData.wrongQuestions;
+    if (subject !== 'all') wrongs = wrongs.filter(w => w.subject === subject);
+
+    document.getElementById('wrong-total').textContent = appData.wrongQuestions.length;
+    document.getElementById('wrong-concept').textContent = appData.wrongQuestions.filter(w => w.reason === 'concept').length;
+    document.getElementById('wrong-careless').textContent = appData.wrongQuestions.filter(w => w.reason === 'careless').length;
+    document.getElementById('wrong-unknown').textContent = appData.wrongQuestions.filter(w => w.reason === 'unknown' || !w.reason).length;
+
+    const list = document.getElementById('wrong-list');
+    if (wrongs.length === 0) {
+        list.innerHTML = '<div class="empty-state">太棒了！没有错题</div>';
+        return;
+    }
+    list.innerHTML = wrongs.map((w, idx) => `
+        <div class="wrong-item">
+            <div class="wrong-header">
+                <span class="q-badge">${w.subject}</span>
+                <span class="q-badge">${w.topic}</span>
+                <span class="q-badge">${{easy:'简单',medium:'中等',hard:'困难'}[w.difficulty]}</span>
+            </div>
+            <div class="wrong-question">${w.question}</div>
+            <div class="wrong-answer-row">
+                <span class="wa-wrong">你的答案：${w.wrongAnswer !== null && w.wrongAnswer !== undefined ? String.fromCharCode(65 + w.wrongAnswer) + '. ' + w.options[w.wrongAnswer] : '未作答'}</span>
+                <span class="wa-correct">正确答案：${String.fromCharCode(65 + w.answer)}. ${w.options[w.answer]}</span>
+            </div>
+            <div class="result-explanation" style="margin-top:8px">解析：${w.explanation}</div>
+            <div class="wrong-reason-select">
+                <span style="font-size:12px;color:var(--text-light)">错误原因：</span>
+                <button class="reason-btn ${w.reason === 'concept' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'concept')">概念不清</button>
+                <button class="reason-btn ${w.reason === 'careless' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'careless')">粗心失误</button>
+                <button class="reason-btn ${w.reason === 'unknown' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'unknown')">完全不会</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function setWrongReason(id, reason) {
+    const w = appData.wrongQuestions.find(x => x.id === id);
+    if (w) { w.reason = reason; saveData(appData); renderWrongBook(); }
+}
+
+function startWrongQuiz() {
+    if (appData.wrongQuestions.length === 0) { showToast('暂无错题'); return; }
+    navigateTo('quiz');
+    setTimeout(() => startQuiz('wrong'), 100);
+}
+
+// ========== AI 问答 ==========
+function handleChatKeydown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChatMessage();
+    }
+}
+
+function sendSuggestion(text) {
+    document.getElementById('chat-input').value = text;
+    sendChatMessage();
 }
 
 function sendChatMessage() {
-  const input = document.getElementById('chatInput');
-  const text = input.value.trim();
-  if (!text) return;
-  addChatMessage('user', text);
-  input.value = '';
-  showTypingIndicator();
-  setTimeout(() => {
-    hideTypingIndicator();
-    const response = generateAIResponse(text);
-    addChatMessage('ai', response.answer, response.source);
-  }, 800 + Math.random()*1000);
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    addMessage('user', text);
+    input.value = '';
+
+    const typingId = addTypingIndicator();
+
+    setTimeout(() => {
+        removeTypingIndicator(typingId);
+        const response = generateAIResponse(text);
+        addMessage('ai', response.answer, response.source);
+    }, 800 + Math.random() * 800);
 }
-function addChatMessage(role, text, source) {
-  const container = document.getElementById('chatMessages');
-  const isUser = role === 'user';
-  const html = `<div class="message ${isUser?'user-message':'ai-message'}">
-    <div class="msg-avatar">${isUser?'👤':'🤖'}</div>
-    <div class="msg-content">${text.replace(/\n/g,'<br>')}${source?`<div class="msg-source">📚 参考：${source}</div>`:''}</div></div>`;
-  container.insertAdjacentHTML('beforeend', html);
-  container.scrollTop = container.scrollHeight;
+
+function addMessage(role, content, source) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'message ' + (role === 'user' ? 'user-message' : 'ai-message');
+    const avatar = role === 'user' ? '👤' : '🤖';
+    let html = `<div class="msg-avatar">${avatar}</div><div class="msg-content">`;
+    content.split('\n').forEach(line => {
+        if (line.trim()) html += `<p>${line}</p>`;
+    });
+    if (source) html += `<div class="msg-source">📖 引用来源：${source}</div>`;
+    html += '</div>';
+    div.innerHTML = html;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
 }
-function showTypingIndicator() {
-  const container = document.getElementById('chatMessages');
-  container.insertAdjacentHTML('beforeend', `<div class="message ai-message" id="typingIndicator"><div class="msg-avatar">🤖</div><div class="msg-content"><div class="typing-indicator"><span></span><span></span><span></span></div></div></div>`);
-  container.scrollTop = container.scrollHeight;
+
+function addTypingIndicator() {
+    const container = document.getElementById('chat-messages');
+    const id = 'typing-' + Date.now();
+    const div = document.createElement('div');
+    div.id = id;
+    div.className = 'message ai-message';
+    div.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-content"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return id;
 }
-function hideTypingIndicator() { const el=document.getElementById('typingIndicator'); if(el) el.remove(); }
+
+function removeTypingIndicator(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+}
+
 function generateAIResponse(question) {
-  const q = question.toLowerCase();
-  for (const [key, value] of Object.entries(AI_KNOWLEDGE)) {
-    if (q.includes(key.toLowerCase()) || q.includes(key.toLowerCase().replace(/\s/g,''))) return value;
-  }
-  const subjectKeywords = { '数学':'math','物理':'physics','化学':'chem','生物':'bio','经济':'econ','英语':'esl','ict':'ict','计算机':'cs' };
-  let matchedSubject = '综合';
-  for (const [kw, sub] of Object.entries(subjectKeywords)) {
-    if (q.includes(kw)) { matchedSubject = kw; break; }
-  }
-  return { answer: `关于「${question}」的解答：\n\n这是一个${matchedSubject}相关的问题。以下是基于IGCSE考纲的要点分析：\n\n1. 核心概念：该问题涉及${matchedSubject}的基础知识点\n2. 解题思路：先理解题目要求，再应用相关公式或原理\n3. 常见考点：此类题目在IGCSE考试中经常出现\n\n建议：结合教材中的相关章节进行复习，并多做练习题巩固。如需更详细的解答，可以上传相关资料或指定具体知识点。`, source: 'IGCSE 智能知识库（综合）' };
+    const q = question.toLowerCase();
+    for (const [key, value] of Object.entries(AI_KNOWLEDGE)) {
+        if (q.includes(key.toLowerCase()) || q.includes(key.toLowerCase().substring(0, 2))) {
+            return value;
+        }
+    }
+
+    const matchedQuestion = QUESTION_BANK.find(qb =>
+        question.includes(qb.topic) || qb.question.includes(question.substring(0, 4))
+    );
+
+    if (matchedQuestion) {
+        return {
+            answer: `关于「${matchedQuestion.topic}」的知识点：\n\n${matchedQuestion.explanation}\n\n这是一个${{easy:'简单',medium:'中等',hard:'困难'}[matchedQuestion.difficulty]}难度的${matchedQuestion.subject}题目考点。建议你多做几道同类型题目巩固。`,
+            source: `${matchedQuestion.subject} ${matchedQuestion.subjectCode} 题库`
+        };
+    }
+
+    const subjectMatch = QUESTION_BANK.find(qb => q.includes(qb.subject.toLowerCase()));
+    if (subjectMatch) {
+        return {
+            answer: `这是一个关于${subjectMatch.subject}的好问题！\n\n根据我的知识库，${subjectMatch.subject}科目包含以下主要章节：\n${[...new Set(QUESTION_BANK.filter(x => x.subject === subjectMatch.subject).map(x => x.topic))].join('、')}\n\n你可以具体问我某个章节的知识点，我会给出详细解答。`,
+            source: `${subjectMatch.subject} ${subjectMatch.subjectCode} Syllabus`
+        };
+    }
+
+    return {
+        answer: `感谢你的提问！我是你的 IGCSE AI 助教，可以帮你解答各科知识点、讲解题目解题思路。\n\n目前我支持以下科目：数学、物理、化学、生物、经济、英语、ICT、计算机科学。\n\n你可以问我类似这样的问题：\n• "解释一下牛顿第二定律"\n• "化学平衡的条件是什么"\n• "如何解二次方程"\n• "需求价格弹性是什么意思"\n\n试试点击下方的推荐问题吧！`,
+        source: 'IGCSE AI 助教知识库'
+    };
+}
+
+// ========== 学习分析 ==========
+function getWeakTopics() {
+    const topicStats = {};
+    appData.quizRecords.forEach(record => {
+        if (record.questions && record.answers) {
+            record.questions.forEach((q, i) => {
+                if (!topicStats[q.topic]) topicStats[q.topic] = { total: 0, correct: 0 };
+                topicStats[q.topic].total++;
+                if (record.answers[i] === q.answer) topicStats[q.topic].correct++;
+            });
+        }
+    });
+    return Object.entries(topicStats)
+        .filter(([_, s]) => s.total >= 2 && s.correct / s.total < 0.6)
+        .map(([topic]) => topic);
 }
 
 function renderAnalytics() {
-  renderSubjectChart();
-  renderAccuracyChart();
-  renderWeakTopics();
+    renderTrendChart();
+    renderRadarChart();
+    renderDifficultyChart();
+    renderWeakTopics();
 }
-function renderSubjectChart() {
-  const canvas = document.getElementById('subjectChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const subjects = [...new Set(QUESTION_BANK.map(q=>q.subject))];
-  const data = subjects.map(()=>40+Math.floor(Math.random()*50));
-  const w = canvas.width = canvas.offsetWidth;
-  const h = canvas.height = canvas.offsetHeight;
-  ctx.clearRect(0,0,w,h);
-  const barW = w / subjects.length * 0.5;
-  const gap = w / subjects.length * 0.5;
-  const max = Math.max(...data, 100);
-  const colors = ['#3498db','#e74c3c','#27ae60','#f39c12','#9b59b6','#1abc9c','#e67e22','#34495e'];
-  data.forEach((v,i) => {
-    const barH = (v/max)*(h-50);
-    const x = i*(barW+gap)+gap/2;
-    const y = h-barH-25;
-    ctx.fillStyle = colors[i%colors.length];
-    ctx.beginPath(); ctx.roundRect(x,y,barW,barH,4); ctx.fill();
-    ctx.fillStyle = '#7f8c8d'; ctx.font='10px sans-serif'; ctx.textAlign='center';
-    ctx.fillText(subjects[i].substring(0,2), x+barW/2, h-8);
-    ctx.fillStyle = '#2c3e50'; ctx.fillText(v+'%', x+barW/2, y-5);
-  });
+
+function renderTrendChart() {
+    const canvas = document.getElementById('trend-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width = canvas.offsetWidth;
+    const H = canvas.height = canvas.offsetHeight;
+    ctx.clearRect(0, 0, W, H);
+
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
+        days.push({ date: d, count: appData.dailyStats[d]?.questions || 0 });
+    }
+    const max = Math.max(...days.map(d => d.count), 5);
+    const padL = 40, padB = 30, padT = 20;
+    const chartW = W - padL - 20, chartH = H - padB - padT;
+
+    ctx.strokeStyle = '#e0e6ed';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+        const y = padT + chartH * i / 4;
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - 20, y); ctx.stroke();
+        ctx.fillStyle = '#7f8c8d'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText(Math.round(max * (4 - i) / 4), padL - 6, y + 3);
+    }
+
+    ctx.strokeStyle = '#2980b9';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    days.forEach((d, i) => {
+        const x = padL + chartW * i / 6;
+        const y = padT + chartH * (1 - d.count / max);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    const grad = ctx.createLinearGradient(0, padT, 0, padT + chartH);
+    grad.addColorStop(0, 'rgba(41,128,185,0.3)');
+    grad.addColorStop(1, 'rgba(41,128,185,0)');
+    ctx.fillStyle = grad;
+    ctx.lineTo(padL + chartW, padT + chartH);
+    ctx.lineTo(padL, padT + chartH);
+    ctx.closePath();
+    ctx.fill();
+
+    days.forEach((d, i) => {
+        const x = padL + chartW * i / 6;
+        const y = padT + chartH * (1 - d.count / max);
+        ctx.fillStyle = '#2980b9';
+        ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#7f8c8d'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(d.date.substring(5), x, H - 10);
+    });
 }
-function renderAccuracyChart() {
-  const canvas = document.getElementById('accuracyChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width = canvas.offsetWidth;
-  const h = canvas.height = canvas.offsetHeight;
-  ctx.clearRect(0,0,w,h);
-  const data = [65,72,58,80,75,88,82];
-  const max = 100;
-  ctx.strokeStyle = '#e0e6ed'; ctx.lineWidth = 1;
-  for (let i=0;i<=4;i++) { const y=20+(h-50)*i/4; ctx.beginPath(); ctx.moveTo(30,y); ctx.lineTo(w-10,y); ctx.stroke(); }
-  ctx.strokeStyle = '#3498db'; ctx.lineWidth = 2.5; ctx.beginPath();
-  data.forEach((v,i) => {
-    const x = 30 + (w-50)*i/(data.length-1);
-    const y = 20 + (h-50)*(1-v/max);
-    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  });
-  ctx.stroke();
-  data.forEach((v,i) => {
-    const x = 30 + (w-50)*i/(data.length-1);
-    const y = 20 + (h-50)*(1-v/max);
-    ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
-  });
+
+function renderRadarChart() {
+    const canvas = document.getElementById('radar-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width = canvas.offsetWidth;
+    const H = canvas.height = canvas.offsetHeight;
+    ctx.clearRect(0, 0, W, H);
+
+    const subjects = [...new Set(QUESTION_BANK.map(q => q.subject))];
+    const cx = W / 2, cy = H / 2, radius = Math.min(W, H) / 2 - 40;
+    const n = subjects.length;
+
+    ctx.strokeStyle = '#e0e6ed';
+    ctx.lineWidth = 1;
+    for (let level = 1; level <= 4; level++) {
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+            const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+            const r = radius * level / 4;
+            const x = cx + r * Math.cos(angle), y = cy + r * Math.sin(angle);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+
+    for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle));
+        ctx.stroke();
+    }
+
+    const data = subjects.map(s => {
+        const qs = QUESTION_BANK.filter(q => q.subject === s);
+        const correct = qs.filter(q => !appData.wrongQuestions.find(w => w.id === q.id)).length;
+        return Math.max(0.3, correct / qs.length);
+    });
+
+    ctx.fillStyle = 'rgba(41,128,185,0.3)';
+    ctx.strokeStyle = '#2980b9';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    data.forEach((v, i) => {
+        const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+        const r = radius * v;
+        const x = cx + r * Math.cos(angle), y = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#2c3e50';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    subjects.forEach((s, i) => {
+        const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+        const x = cx + (radius + 20) * Math.cos(angle);
+        const y = cy + (radius + 20) * Math.sin(angle);
+        ctx.fillText(s, x, y + 4);
+    });
 }
+
+function renderDifficultyChart() {
+    const canvas = document.getElementById('difficulty-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width = canvas.offsetWidth;
+    const H = canvas.height = canvas.offsetHeight;
+    ctx.clearRect(0, 0, W, H);
+
+    const diffs = ['简单', '中等', '困难'];
+    const diffKeys = ['easy', 'medium', 'hard'];
+    const colors = ['#27ae60', '#f39c12', '#e74c3c'];
+    const data = diffKeys.map(k => {
+        const qs = QUESTION_BANK.filter(q => q.difficulty === k);
+        const wrong = qs.filter(q => appData.wrongQuestions.find(w => w.id === q.id)).length;
+        return qs.length > 0 ? Math.round((1 - wrong / qs.length) * 100) : 0;
+    });
+
+    const barW = W / 3 * 0.4;
+    const gap = W / 3;
+    const maxH = H - 50;
+
+    diffs.forEach((d, i) => {
+        const h = (data[i] / 100) * maxH;
+        const x = i * gap + (gap - barW) / 2;
+        const y = H - h - 30;
+        ctx.fillStyle = colors[i];
+        ctx.beginPath();
+        ctx.roundRect(x, y, barW, h, [4, 4, 0, 0]);
+        ctx.fill();
+        ctx.fillStyle = '#2c3e50';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(data[i] + '%', x + barW / 2, y - 8);
+        ctx.fillStyle = '#7f8c8d';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(d, x + barW / 2, H - 10);
+    });
+}
+
 function renderWeakTopics() {
-  const topics = [
-    {name:'化学-化学键',rate:35},{name:'物理-电学',rate:42},{name:'数学-几何',rate:48},
-    {name:'生物-遗传',rate:52},{name:'经济-弹性',rate:55},{name:'英语-语法',rate:60}
-  ];
-  document.getElementById('weakTopicsList').innerHTML = topics.map(t => `<div class="weak-topic-item">
-    <span class="wt-name">${t.name}</span><div class="wt-bar"><div class="wt-fill" style="width:${t.rate}%"></div></div><span class="wt-rate">${t.rate}%</span></div>`).join('');
+    const topicStats = {};
+    appData.quizRecords.forEach(record => {
+        if (record.questions && record.answers) {
+            record.questions.forEach((q, i) => {
+                if (!topicStats[q.topic]) topicStats[q.topic] = { total: 0, correct: 0, subject: q.subject };
+                topicStats[q.topic].total++;
+                if (record.answers[i] === q.answer) topicStats[q.topic].correct++;
+            });
+        }
+    });
+
+    const weak = Object.entries(topicStats)
+        .filter(([_, s]) => s.total >= 1)
+        .map(([topic, s]) => ({ topic, ...s, rate: Math.round(s.correct / s.total * 100) }))
+        .sort((a, b) => a.rate - b.rate)
+        .slice(0, 6);
+
+    const el = document.getElementById('weak-topics');
+    if (weak.length === 0 || appData.quizRecords.length === 0) {
+        el.innerHTML = '<div class="empty-state">数据不足，多做一些题再来看看</div>';
+        return;
+    }
+    el.innerHTML = weak.map(w => `
+        <div class="weak-topic-item">
+            <span class="wt-name">${w.subject} · ${w.topic}</span>
+            <div class="wt-bar"><div class="wt-fill" style="width:${100 - w.rate}%"></div></div>
+            <span class="wt-rate">${w.rate}%</span>
+        </div>
+    `).join('');
 }
 
+// ========== 成员管理 ==========
 function renderMembers() {
-  const container = document.getElementById('membersList');
-  container.innerHTML = MEMBERS_DATA.map(m => `<div class="member-item">
-    <div class="member-avatar" style="background:${m.avatarColor}">${m.name.charAt(0)}</div>
-    <div class="member-info"><div class="member-name">${m.name}</div><div class="member-meta">加入：${m.joinDate} · 最近活跃：${m.lastActive}</div></div>
-    <span class="member-role-badge role-${m.role}">${m.roleName}</span></div>`).join('');
-}
-function copyShareLink() {
-  const link = window.location.href + '?invite=igcse2024';
-  navigator.clipboard.writeText(link).then(()=>showToast('邀请链接已复制！')).catch(()=>showToast('复制失败，请手动复制'));
-}
-
-function renderSettings() {
-  document.getElementById('examDateInput').value = appState.settings.examDate;
-  document.getElementById('darkModeToggle').checked = appState.settings.darkMode;
+    const list = document.getElementById('members-list');
+    list.innerHTML = MEMBERS_DATA.map(m => `
+        <div class="member-item">
+            <div class="member-avatar" style="background:${m.avatarColor}">${m.name.charAt(0)}</div>
+            <div class="member-info">
+                <div class="member-name">${m.name}</div>
+                <div class="member-meta">加入于 ${m.joinDate} · 最后活跃 ${m.lastActive}</div>
+            </div>
+            <span class="member-role-badge role-${m.role}">${m.roleName}</span>
+        </div>
+    `).join('');
 }
 
-function showToast(message) {
-  const existing = document.querySelector('.toast');
-  if (existing) existing.remove();
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(()=>toast.remove(), 2500);
+function copyInviteLink() {
+    const input = document.getElementById('invite-link');
+    input.select();
+    document.execCommand('copy');
+    showToast('邀请链接已复制到剪贴板');
 }
 
-document.addEventListener('DOMContentLoaded', init);
+function regenerateCode() {
+    const code = 'IGCSE' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    document.getElementById('access-code').value = code;
+    showToast('新访问密码已生成');
+}
+
+// ========== 设置 ==========
+function loadSettingsForm() {
+    document.getElementById('setting-sitename').value = appData.settings.siteName;
+    document.getElementById('setting-board').value = appData.settings.board;
+    document.getElementById('setting-exam-date').value = appData.settings.examDate;
+    document.getElementById('setting-darkmode').checked = appData.settings.darkMode;
+    document.getElementById('setting-reminder').checked = appData.settings.reminder;
+    document.getElementById('setting-remind-time').value = appData.settings.remindTime;
+}
+
+function saveSettings() {
+    appData.settings.siteName = document.getElementById('setting-sitename').value;
+    appData.settings.board = document.getElementById('setting-board').value;
+    appData.settings.examDate = document.getElementById('setting-exam-date').value;
+    appData.settings.reminder = document.getElementById('setting-reminder').checked;
+    appData.settings.remindTime = document.getElementById('setting-remind-time').value;
+    saveData(appData);
+    document.getElementById('user-board').textContent = appData.settings.board.toUpperCase();
+    updateCountdown();
+    showToast('设置已保存');
+}
+
+function toggleDarkMode() {
+    const enabled = document.getElementById('setting-darkmode').checked;
+    appData.settings.darkMode = enabled;
+    document.body.classList.toggle('dark-mode', enabled);
+    saveData(appData);
+}
+
+function exportData() {
+    const dataStr = JSON.stringify(appData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'igcse-study-data-' + getTodayStr() + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('数据已导出');
+}
+
+function resetProgress() {
+    if (confirm('确定要重置所有学习记录吗？这将清除做题记录、错题和复习数据，但保留上传的资料。')) {
+        appData.quizRecords = [];
+        appData.wrongQuestions = [];
+        appData.srsData = {};
+        appData.dailyStats = {};
+        appData.studyTime = 0;
+        appData.streak = 0;
+        saveData(appData);
+        showToast('学习记录已重置');
+        renderDashboard();
+    }
+}
+
+// ========== 初始化 ==========
+window.addEventListener('load', () => {
+    if (appData.currentUser) {
+        currentUser = appData.currentUser;
+        enterApp();
+    }
+    document.getElementById('login-password').addEventListener('keydown', e => {
+        if (e.key === 'Enter') handleLogin();
+    });
+});
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        if (currentPage === 'dashboard') renderSubjectChart();
+        if (currentPage === 'analytics') renderAnalytics();
+    }, 200);
+});
