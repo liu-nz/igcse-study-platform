@@ -101,12 +101,6 @@ function shuffleArray(arr) {
     return a;
 }
 
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
 // ========== 登录系统 ==========
 document.querySelectorAll('.login-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -136,23 +130,32 @@ function handleRegister() {
     const name = document.getElementById('reg-name').value.trim();
     const email = document.getElementById('reg-email').value.trim();
     const password = document.getElementById('reg-password').value;
+    const inviteCode = document.getElementById('reg-invite-code').value.trim();
     const board = document.getElementById('reg-board').value;
     if (!name || !email || !password) {
         showToast('请填写完整信息');
+        return;
+    }
+    if (!inviteCode) {
+        showToast('请输入邀请码');
+        return;
+    }
+    if (inviteCode !== 'LNZzuishuai666') {
+        showToast('邀请码错误，请确认后重试');
         return;
     }
     if (appData.users.find(u => u.email === email)) {
         showToast('该邮箱已注册');
         return;
     }
-    const newUser = { email, password, name, board, role: 'owner' };
+    const newUser = { email, password, name, board, role: 'collab' };
     appData.users.push(newUser);
     currentUser = newUser;
     appData.currentUser = newUser;
     appData.settings.board = board;
     saveData(appData);
     enterApp();
-    showToast('注册成功！');
+    showToast('注册成功，欢迎加入！');
 }
 
 function handleGuestLogin() {
@@ -419,6 +422,12 @@ function openMaterial(id) {
         contentEl.innerHTML = '<div class="empty-state">该资料暂无详细内容，可在上传资料时添加内容描述。</div>';
     }
     document.getElementById('material-modal').classList.remove('hidden');
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
 
 function showUploadModal() {
@@ -1072,7 +1081,7 @@ function generateAIResponse(question) {
     }
 
     return {
-        answer: `感谢你的提问！我是你的 IGCSE AI 助教，可以帮你解答各科知识点、讲解题目解题思路。\n\n目前我支持以下科目：数学、物理、化学、生物、经济、英语、ICT、计算机科学。\n\n你可以问我类似这样的问题：\n• "解释一下牛顿第二定律"\n• "化学平衡的条件是什么"\n• "如何解二次方程"\n• "需求价格弹性是什么意思"\n\n试试点击下方的推荐问题吧！`,
+        answer: `感谢你的提问！我是你的 IGCSE AI 助教，可以帮你解答各科知识点、讲解题目解题思路。\n\n目前我支持以下科目：数学、物理、化学、生物、经济。\n\n你可以问我类似这样的问题：\n• "解释一下牛顿第二定律"\n• "化学平衡的条件是什么"\n• "如何解二次方程"\n• "需求价格弹性是什么意思"\n\n试试点击下方的推荐问题吧！`,
         source: 'IGCSE AI 助教知识库'
     };
 }
