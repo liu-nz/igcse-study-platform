@@ -838,6 +838,23 @@
         </div>
     </div>
 
+    <!-- 资料详情弹窗 -->
+    <div id="material-modal" class="modal hidden">
+        <div class="modal-content" style="max-width:700px;">
+            <div class="modal-header">
+                <h3 id="material-modal-title">资料详情</h3>
+                <button class="modal-close" onclick="closeModal('material-modal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="material-modal-meta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
+                <div id="material-modal-content" style="max-height:60vh;overflow-y:auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('material-modal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 新建闪卡弹窗 -->
     <div id="addcard-modal" class="modal hidden">
         <div class="modal-content">
