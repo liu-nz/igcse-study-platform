@@ -195,6 +195,7 @@ function navigateTo(page) {
     const titles = {
         dashboard: '首页仪表盘', materials: '资料中心', quiz: '题库刷题',
         pastpapers: '历年真题', review: '智能复习', flashcards: '闪卡记忆',
+        mustknow: '必考点', keyunits: '重点复习单元',
         wrongbook: '错题本', aichat: 'AI 问答', analytics: '学习分析',
         members: '成员管理', settings: '设置'
     };
@@ -225,6 +226,8 @@ function renderPage(page) {
         case 'pastpapers': renderPastPapers(); break;
         case 'review': renderReview(); break;
         case 'flashcards': renderFlashcards(); break;
+        case 'mustknow': renderMustKnow(); break;
+        case 'keyunits': renderKeyUnits(); break;
         case 'wrongbook': renderWrongBook(); break;
         case 'analytics': renderAnalytics(); break;
         case 'members': renderMembers(); break;
@@ -234,7 +237,7 @@ function renderPage(page) {
 
 function populateFilters() {
     const subjects = [...new Set(QUESTION_BANK.map(q => q.subject))];
-    ['material-subject-filter', 'quiz-subject', 'wrong-filter', 'upload-subject', 'card-subject', 'pp-subject'].forEach(id => {
+    ['material-subject-filter', 'quiz-subject', 'wrong-filter', 'upload-subject', 'card-subject', 'pp-subject', 'mustknow-subject', 'keyunits-subject'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
         const currentVal = sel.value;
@@ -261,6 +264,7 @@ function renderDashboard() {
     document.getElementById('stat-streak').textContent = appData.streak;
     document.getElementById('stat-time').textContent = Math.floor(appData.studyTime / 60) + 'h';
 
+    // 今日任务
     const dueCount = getDueReviewCount();
     const wrongCount = appData.wrongQuestions.length;
     const tasks = [];
@@ -281,6 +285,7 @@ function renderDashboard() {
         `).join('');
     }
 
+    // 最近错题
     const recentWrong = appData.wrongQuestions.slice(-3).reverse();
     const wrongEl = document.getElementById('recent-wrong');
     if (recentWrong.length === 0) {
@@ -294,12 +299,16 @@ function renderDashboard() {
         `).join('');
     }
 
+    // 徽章
     document.getElementById('review-badge').textContent = dueCount;
     document.getElementById('review-badge').style.display = dueCount > 0 ? 'inline-block' : 'none';
     document.getElementById('wrong-badge').textContent = wrongCount;
     document.getElementById('wrong-badge').style.display = wrongCount > 0 ? 'inline-block' : 'none';
 
+    // 图表
     renderSubjectChart();
+    // 学科分类板块
+    renderSubjectCards();
 }
 
 function renderSubjectChart() {
@@ -429,6 +438,8 @@ function startQuiz(mode) {
 
     if (subject !== 'all') questions = questions.filter(q => q.subject === subject);
     if (difficulty !== 'all') questions = questions.filter(q => q.difficulty === difficulty);
+    const hotOnly = document.getElementById('quiz-hot-only')?.checked;
+    if (hotOnly) questions = questions.filter(q => q.isHot);
 
     if (mode === 'wrong') {
         const wrongIds = appData.wrongQuestions.map(w => w.id);
@@ -485,6 +496,19 @@ function renderQuestion() {
     document.getElementById('q-topic').textContent = q.topic;
     document.getElementById('question-text').textContent = q.question;
 
+    // 常考点标记
+    const hotBadge = document.getElementById('q-hot');
+    if (q.isHot) { hotBadge.classList.remove('hidden'); } else { hotBadge.classList.add('hidden'); }
+
+    // 双语关键词
+    const kwEl = document.getElementById('q-keywords');
+    if (q.keywords && q.keywords.length > 0) {
+        kwEl.innerHTML = q.keywords.map(k => `<span class="kw-chip">${k}</span>`).join('');
+        kwEl.classList.remove('hidden');
+    } else {
+        kwEl.classList.add('hidden');
+    }
+
     const optionsEl = document.getElementById('options-list');
     optionsEl.innerHTML = q.options.map((opt, i) => {
         let cls = 'option-item';
@@ -501,6 +525,7 @@ function renderQuestion() {
         </div>`;
     }).join('');
 
+    // 结果区
     const resultEl = document.getElementById('question-result');
     if (quizState.submitted) {
         const isCorrect = quizState.selectedOption === q.answer;
@@ -513,6 +538,7 @@ function renderQuestion() {
         resultEl.classList.add('hidden');
     }
 
+    // 按钮
     document.getElementById('btn-prev').style.display = quizState.currentIndex > 0 ? 'inline-flex' : 'none';
     document.getElementById('btn-submit').style.display = !quizState.submitted ? 'inline-flex' : 'none';
     document.getElementById('btn-next').style.display = quizState.submitted ? 'inline-flex' : 'none';
@@ -535,17 +561,20 @@ function submitAnswer() {
     const q = quizState.questions[quizState.currentIndex];
     const isCorrect = quizState.selectedOption === q.answer;
 
+    // 记录答题
     const today = getTodayStr();
     if (!appData.dailyStats[today]) appData.dailyStats[today] = { questions: 0, correct: 0 };
     appData.dailyStats[today].questions++;
     if (isCorrect) appData.dailyStats[today].correct++;
 
+    // 更新连续打卡
     if (appData.lastStudyDate !== today) {
         const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
         appData.streak = appData.lastStudyDate === yesterday ? appData.streak + 1 : 1;
         appData.lastStudyDate = today;
     }
 
+    // 错题管理
     if (!isCorrect) {
         if (!appData.wrongQuestions.find(w => w.id === q.id)) {
             appData.wrongQuestions.push({ ...q, wrongAnswer: quizState.selectedOption, reason: '', date: today });
@@ -554,7 +583,9 @@ function submitAnswer() {
         appData.wrongQuestions = appData.wrongQuestions.filter(w => w.id !== q.id);
     }
 
+    // SRS 更新
     updateSRS(q.id, isCorrect);
+
     saveData(appData);
     renderQuestion();
 }
@@ -584,6 +615,7 @@ function finishQuiz() {
     document.getElementById('quiz-playing').classList.add('hidden');
     document.getElementById('quiz-result').classList.remove('hidden');
 
+    // 动画圆环
     const circle = document.getElementById('score-circle');
     const circumference = 339.292;
     setTimeout(() => {
@@ -596,6 +628,7 @@ function finishQuiz() {
     document.getElementById('result-wrong').textContent = total - correct;
     document.getElementById('result-time').textContent = formatTime(quizState.elapsedSeconds);
 
+    // 保存记录
     appData.quizRecords.push({
         date: getTodayStr(),
         total, correct,
@@ -607,8 +640,14 @@ function finishQuiz() {
     saveData(appData);
 }
 
-function restartQuiz() { resetQuizSetup(); }
-function reviewWrong() { navigateTo('wrongbook'); }
+function restartQuiz() {
+    resetQuizSetup();
+}
+
+function reviewWrong() {
+    navigateTo('wrongbook');
+}
+
 function exitQuiz() {
     if (confirm('确定要退出本次练习吗？进度将不会保存。')) {
         clearInterval(quizState.timerInterval);
@@ -675,7 +714,7 @@ function renderPastPapers() {
                 <div class="pp-title">${p.subject} ${p.year} ${p.seasonName} - ${p.paper} (Variant ${p.variant})</div>
                 <div class="pp-meta">
                     <span>📋 ${p.questions} 题</span>
-                    <span>⏱ ${p.duration}</span>
+                    <span>⏱️ ${p.duration}</span>
                     <span>📝 代码: ${p.code}</span>
                 </div>
             </div>
@@ -705,6 +744,7 @@ function renderReview() {
     document.getElementById('review-mastered').textContent = mastered;
     document.getElementById('review-learning').textContent = learning || totalSrs;
 
+    // 复习任务
     const tasksEl = document.getElementById('review-tasks');
     if (dueItems.length === 0) {
         tasksEl.innerHTML = '<div class="empty-state">今日没有需要复习的内容，去学习新知识吧！</div>';
@@ -728,6 +768,7 @@ function renderReview() {
         document.getElementById('start-review-btn').style.display = 'inline-flex';
     }
 
+    // 记忆状态分布
     const bars = [
         { label: '未掌握', count: Object.values(appData.srsData).filter(s => s.interval <= 1).length, color: '#e74c3c' },
         { label: '学习中', count: Object.values(appData.srsData).filter(s => s.interval > 1 && s.interval < 7).length, color: '#f39c12' },
@@ -820,7 +861,9 @@ function rateCard(rating) {
     }
 }
 
-function exitFlashcard() { renderFlashcards(); }
+function exitFlashcard() {
+    renderFlashcards();
+}
 
 function showAddCardModal() {
     document.getElementById('addcard-modal').classList.remove('hidden');
@@ -916,6 +959,7 @@ function sendChatMessage() {
     addMessage('user', text);
     input.value = '';
 
+    // 显示打字动画
     const typingId = addTypingIndicator();
 
     setTimeout(() => {
@@ -959,6 +1003,7 @@ function removeTypingIndicator(id) {
 }
 
 function generateAIResponse(question) {
+    // 关键词匹配知识库
     const q = question.toLowerCase();
     for (const [key, value] of Object.entries(AI_KNOWLEDGE)) {
         if (q.includes(key.toLowerCase()) || q.includes(key.toLowerCase().substring(0, 2))) {
@@ -966,6 +1011,7 @@ function generateAIResponse(question) {
         }
     }
 
+    // 基于题目数据的智能回答
     const matchedQuestion = QUESTION_BANK.find(qb =>
         question.includes(qb.topic) || qb.question.includes(question.substring(0, 4))
     );
@@ -977,6 +1023,7 @@ function generateAIResponse(question) {
         };
     }
 
+    // 默认回答
     const subjectMatch = QUESTION_BANK.find(qb => q.includes(qb.subject.toLowerCase()));
     if (subjectMatch) {
         return {
@@ -1023,6 +1070,7 @@ function renderTrendChart() {
     const H = canvas.height = canvas.offsetHeight;
     ctx.clearRect(0, 0, W, H);
 
+    // 最近7天
     const days = [];
     for (let i = 6; i >= 0; i--) {
         const d = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
@@ -1032,6 +1080,7 @@ function renderTrendChart() {
     const padL = 40, padB = 30, padT = 20;
     const chartW = W - padL - 20, chartH = H - padB - padT;
 
+    // 网格
     ctx.strokeStyle = '#e0e6ed';
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
@@ -1041,6 +1090,7 @@ function renderTrendChart() {
         ctx.fillText(Math.round(max * (4 - i) / 4), padL - 6, y + 3);
     }
 
+    // 折线
     ctx.strokeStyle = '#2980b9';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -1051,6 +1101,7 @@ function renderTrendChart() {
     });
     ctx.stroke();
 
+    // 渐变填充
     const grad = ctx.createLinearGradient(0, padT, 0, padT + chartH);
     grad.addColorStop(0, 'rgba(41,128,185,0.3)');
     grad.addColorStop(1, 'rgba(41,128,185,0)');
@@ -1060,6 +1111,7 @@ function renderTrendChart() {
     ctx.closePath();
     ctx.fill();
 
+    // 数据点和标签
     days.forEach((d, i) => {
         const x = padL + chartW * i / 6;
         const y = padT + chartH * (1 - d.count / max);
@@ -1082,6 +1134,7 @@ function renderRadarChart() {
     const cx = W / 2, cy = H / 2, radius = Math.min(W, H) / 2 - 40;
     const n = subjects.length;
 
+    // 网格
     ctx.strokeStyle = '#e0e6ed';
     ctx.lineWidth = 1;
     for (let level = 1; level <= 4; level++) {
@@ -1095,6 +1148,7 @@ function renderRadarChart() {
         ctx.stroke();
     }
 
+    // 轴线
     for (let i = 0; i < n; i++) {
         const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
         ctx.beginPath();
@@ -1103,6 +1157,7 @@ function renderRadarChart() {
         ctx.stroke();
     }
 
+    // 数据
     const data = subjects.map(s => {
         const qs = QUESTION_BANK.filter(q => q.subject === s);
         const correct = qs.filter(q => !appData.wrongQuestions.find(w => w.id === q.id)).length;
@@ -1123,6 +1178,7 @@ function renderRadarChart() {
     ctx.fill();
     ctx.stroke();
 
+    // 标签
     ctx.fillStyle = '#2c3e50';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
@@ -1288,17 +1344,170 @@ function resetProgress() {
     }
 }
 
+// ========== 学科分类板块 ==========
+function renderSubjectCards() {
+    const container = document.getElementById('subject-cards');
+    if (!container) return;
+    const subjects = [...new Set(QUESTION_BANK.map(q => q.subject))];
+    const subjectInfo = {
+        '数学': { icon: '📐', code: '0580', color: '#3498db' },
+        '物理': { icon: '⚡', code: '0625', color: '#e74c3c' },
+        '化学': { icon: '🧪', code: '0620', color: '#27ae60' },
+        '生物': { icon: '🧬', code: '0610', color: '#16a085' },
+        '经济': { icon: '📊', code: '0455', color: '#f39c12' },
+        '英语': { icon: '📝', code: '0510', color: '#9b59b6' },
+        'ICT': { icon: '💻', code: '0417', color: '#2980b9' },
+        '计算机科学': { icon: '🖥️', code: '0478', color: '#34495e' },
+    };
+    container.innerHTML = subjects.map(s => {
+        const info = subjectInfo[s] || { icon: '📚', code: '', color: '#7f8c8d' };
+        const qCount = QUESTION_BANK.filter(q => q.subject === s).length;
+        const hotCount = QUESTION_BANK.filter(q => q.subject === s && q.isHot).length;
+        const mkCount = MUST_KNOW_POINTS.filter(m => m.subject === s).length;
+        return `
+            <div class="subject-card" style="border-left-color:${info.color}" onclick="filterBySubject('${s}')">
+                <div class="sc-icon" style="background:${info.color}15">${info.icon}</div>
+                <div class="sc-info">
+                    <div class="sc-name">${s} <span class="sc-code">${info.code}</span></div>
+                    <div class="sc-stats">
+                        <span>${qCount}题 Questions</span>
+                        <span class="sc-hot">🔥${hotCount}常考 Hot</span>
+                        <span>⭐${mkCount}必考点 Must-know</span>
+                    </div>
+                </div>
+                <div class="sc-arrow">→</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function filterBySubject(subject) {
+    document.getElementById('quiz-subject').value = subject;
+    navigateTo('quiz');
+}
+
+// ========== 必考点模块 ==========
+function renderMustKnow() {
+    const subject = document.getElementById('mustknow-subject')?.value || 'all';
+    let points = MUST_KNOW_POINTS;
+    if (subject !== 'all') points = points.filter(p => p.subject === subject);
+
+    document.getElementById('mk-total').textContent = MUST_KNOW_POINTS.length;
+    document.getElementById('mk-hot').textContent = MUST_KNOW_POINTS.filter(p => p.frequency.includes('每年')).length;
+    document.getElementById('mk-subjects').textContent = [...new Set(MUST_KNOW_POINTS.map(p => p.subject))].length;
+
+    const list = document.getElementById('mustknow-list');
+    if (points.length === 0) {
+        list.innerHTML = '<div class="empty-state">该科目暂无必考点</div>';
+        return;
+    }
+    const subjectColors = {
+        '数学': '#3498db', '物理': '#e74c3c', '化学': '#27ae60', '生物': '#16a085',
+        '经济': '#f39c12', '英语': '#9b59b6', 'ICT': '#2980b9', '计算机科学': '#34495e',
+    };
+    list.innerHTML = points.map(p => {
+        const color = subjectColors[p.subject] || '#7f8c8d';
+        const isAnnual = p.frequency.includes('每年');
+        return `
+            <div class="mustknow-card" style="border-top:3px solid ${color}">
+                <div class="mk-header">
+                    <span class="mk-subject-badge" style="background:${color}">${p.subject} ${p.subjectCode}</span>
+                    <span class="mk-frequency ${isAnnual ? 'annual' : ''}">${isAnnual ? '🔥 ' : ''}${p.frequency}</span>
+                    <span class="mk-diff">${p.difficulty === 'easy' ? '🟢 简单' : p.difficulty === 'medium' ? '🟡 中等' : '🔴 困难'}</span>
+                </div>
+                <h4 class="mk-title">${p.title}</h4>
+                <div class="mk-content">${p.content}</div>
+                <div class="mk-actions">
+                    <button class="btn btn-outline btn-sm" onclick="practiceMustKnow('${p.subject}')">✏️ 练相关题目 Practice</button>
+                    <button class="btn btn-outline btn-sm" onclick="navigateTo('flashcards')">🃏 复习闪卡 Flashcards</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function practiceMustKnow(subject) {
+    document.getElementById('quiz-subject').value = subject;
+    document.getElementById('quiz-hot-only').checked = true;
+    navigateTo('quiz');
+}
+
+// ========== 重点复习单元模块 ==========
+function renderKeyUnits() {
+    const subject = document.getElementById('keyunits-subject')?.value || 'all';
+    let units = KEY_UNITS;
+    if (subject !== 'all') units = units.filter(u => u.subject === subject);
+
+    const list = document.getElementById('keyunits-list');
+    if (units.length === 0) {
+        list.innerHTML = '<div class="empty-state">该科目暂无重点单元</div>';
+        return;
+    }
+    const subjectColors = {
+        '数学': '#3498db', '物理': '#e74c3c', '化学': '#27ae60', '生物': '#16a085',
+        '经济': '#f39c12', '英语': '#9b59b6', 'ICT': '#2980b9', '计算机科学': '#34495e',
+    };
+    list.innerHTML = units.map(u => {
+        const color = subjectColors[u.subject] || '#7f8c8d';
+        return `
+            <div class="keyunit-card" style="border-left:4px solid ${color}">
+                <div class="ku-header">
+                    <div class="ku-title-row">
+                        <span class="ku-subject" style="color:${color}">${u.subject} ${u.subjectCode}</span>
+                        <h4 class="ku-title">${u.unit}</h4>
+                    </div>
+                    <div class="ku-meta">
+                        <span class="ku-importance">${u.importance}</span>
+                        <span class="ku-weight">分值占比 Weight: ${u.weight}</span>
+                    </div>
+                </div>
+                <div class="ku-body">
+                    <div class="ku-section">
+                        <span class="ku-section-title">📋 涵盖知识点 Topics (${u.topics.length})</span>
+                        <div class="ku-topics">
+                            ${u.topics.map(t => `<span class="ku-topic-tag">${t}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="ku-section">
+                        <span class="ku-section-title">⭐ 核心要点 Key Points (${u.keyPoints.length})</span>
+                        <ul class="ku-keypoints">
+                            ${u.keyPoints.map(k => `<li>${k}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+                <div class="ku-actions">
+                    <button class="btn btn-primary btn-sm" onclick="practiceUnit('${u.subject}')">✏️ 开始练习 Start Practice</button>
+                    <button class="btn btn-outline btn-sm" onclick="viewUnitMustKnow('${u.subject}')">⭐ 查看必考点 Must-know</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function practiceUnit(subject) {
+    document.getElementById('quiz-subject').value = subject;
+    navigateTo('quiz');
+}
+
+function viewUnitMustKnow(subject) {
+    document.getElementById('mustknow-subject').value = subject;
+    navigateTo('mustknow');
+}
+
 // ========== 初始化 ==========
 window.addEventListener('load', () => {
+    // 检查是否有已登录用户
     if (appData.currentUser) {
         currentUser = appData.currentUser;
         enterApp();
     }
+    // 回车键登录
     document.getElementById('login-password').addEventListener('keydown', e => {
         if (e.key === 'Enter') handleLogin();
     });
 });
 
+// 窗口大小变化时重绘图表
 let resizeTimer;
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
