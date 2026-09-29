@@ -754,7 +754,7 @@ function renderPastPapers() {
 function startMockExam(id) {
     const paper = PAST_PAPERS.find(p => p.id === id);
     if (!paper) { showToast('试卷不存在'); return; }
-    showToast(`开始 ${paper.subject} 模考：${paper.year} ${paper.seasonName} ${p.paper}`);
+    showToast(`开始 ${paper.subject} 模考：${paper.year} ${paper.seasonName} ${paper.paper}`);
     // 直接切换到刷题页面，不经过navigateTo避免resetQuizSetup干扰
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.toggle('active', item.dataset.page === 'quiz');
