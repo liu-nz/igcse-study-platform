@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IGCSE 智能备考平台</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+</head>
+<body>
+    <div id="login-page" class="login-page">
+        <div class="login-container">
+            <div class="login-brand">
+                <div class="login-logo">📚</div>
+                <h1>IGCSE 智能备考平台</h1>
+                <p class="login-subtitle">智能复习 · 刷题 · 问答 · 全方位辅助备考</p>
+            </div>
+            <div class="login-box">
+                <div class="login-tabs">
+                    <button class="login-tab active" data-tab="login">登录</button>
+                    <button class="login-tab" data-tab="register">注册</button>
+                    <button class="login-tab" data-tab="guest">访客访问</button>
+                </div>
+                <div id="login-form" class="login-form active">
+                    <div class="form-group">
+                        <label>邮箱 / 用户名</label>
+                        <input type="text" id="login-email" placeholder="请输入邮箱或用户名" value="demo@igcse.com">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="login-password" placeholder="请输入密码" value="123456">
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="handleLogin()">登 录</button>
+                    <p class="login-tip">💡 演示账号已预填，直接点击登录即可体验</p>
+                </div>
+                <div id="register-form" class="login-form">
+                    <div class="form-group">
+                        <label>昵称</label>
+                        <input type="text" id="reg-name" placeholder="给自己起个昵称">
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" id="reg-email" placeholder="请输入邮箱">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="reg-password" placeholder="设置密码">
+                    </div>
+                    <div class="form-group">
+                        <label>目标考试局</label>
+                        <select id="reg-board">
+                            <option value="cie">Cambridge CIE</option>
+                            <option value="edexcel">Edexcel</option>
+                            <option value="aqa">AQA</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="handleRegister()">注 册</button>
+                </div>
+                <div id="guest-form" class="login-form">
+                    <div class="form-group">
+                        <label>访问密码</label>
+                        <input type="password" id="guest-code" placeholder="请输入站点访问密码">
+                    </div>
+                    <div class="form-group">
+                        <label>访客昵称</label>
+                        <input type="text" id="guest-name" placeholder="输入你的昵称">
+                    </div>
+                    <button class="btn btn-outline btn-block" onclick="handleGuestLogin()">以访客身份进入</button>
+                    <p class="login-tip">🔑 演示密码：guest123</p>
+                </div>
+            </div>
+            <div class="login-features">
+                <div class="feature-item"><span>📝</span>历年真题刷题</div>
+                <div class="feature-item"><span>🔄</span>智能间隔复习</div>
+                <div class="feature-item"><span>🤖</span>AI 答疑助手</div>
+                <div class="feature-item"><span>👥</span>好友协作学习</div>
+            </div>
+        </div>
+    </div>
+    <div id="app" class="app hidden">
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">📚</div>
+                <div class="sidebar-title">
+                    <span class="sidebar-name">IGCSE 备考</span>
+                    <span class="sidebar-board" id="user-board">CIE</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a class="nav-item active" data-page="dashboard"><span class="nav-icon">🏠</span><span class="nav-text">首页仪表盘</span></a>
+                <a class="nav-item" data-page="materials"><span class="nav-icon">📚</span><span class="nav-text">资料中心</span></a>
+                <a class="nav-item" data-page="quiz"><span class="nav-icon">✏️</span><span class="nav-text">题库刷题</span></a>
+                <a class="nav-item" data-page="pastpapers"><span class="nav-icon">📋</span><span class="nav-text">历年真题</span></a>
+                <a class="nav-item" data-page="review"><span class="nav-icon">🔄</span><span class="nav-text">智能复习</span><span class="nav-badge" id="review-badge">0</span></a>
+                <a class="nav-item" data-page="flashcards"><span class="nav-icon">🃏</span><span class="nav-text">闪卡记忆</span></a>
+                <a class="nav-item" data-page="wrongbook"><span class="nav-icon">❌</span><span class="nav-text">错题本</span><span class="nav-badge red" id="wrong-badge">0</span></a>
+                <a class="nav-item" data-page="aichat"><span class="nav-icon">🤖</span><span class="nav-text">AI 问答</span></a>
+                <a class="nav-item" data-page="analytics"><span class="nav-icon">📊</span><span class="nav-text">学习分析</span></a>
+                <a class="nav-item" data-page="members"><span class="nav-icon">👥</span><span class="nav-text">成员管理</span></a>
+                <a class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span><span class="nav-text">设置</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="user-avatar">D</div>
+                    <div class="user-detail">
+                        <span class="user-name" id="user-name">Demo</span>
+                        <span class="user-role" id="user-role">所有者</span>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="handleLogout()">退出</button>
+            </div>
+        </aside>
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+        <main class="main-content">
+            <header class="topbar">
+                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                <div class="topbar-left"><h2 class="page-title" id="page-title">首页仪表盘</h2></div>
+                <div class="topbar-right">
+                    <div class="countdown-widget" id="countdown-widget">
+                        <span class="countdown-label">距离考试</span>
+                        <span class="countdown-value" id="countdown-days">--</span>
+                        <span class="countdown-unit">天</span>
+                    </div>
+                    <button class="icon-btn" title="通知">🔔</button>
+                </div>
+            </header>
+            <div class="page-container">
+                <section id="page-dashboard" class="page active">
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="stat-icon blue">📝</div><div class="stat-info"><span class="stat-value" id="stat-total-questions">0</span><span class="stat-label">累计做题</span></div></div>
+                        <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><span class="stat-value" id="stat-accuracy">0%</span><span class="stat-label">正确率</span></div></div>
+                        <div class="stat-card"><div class="stat-icon orange">🔥</div><div class="stat-info"><span class="stat-value" id="stat-streak">0</span><span class="stat-label">连续打卡</span></div></div>
+                        <div class="stat-card"><div class="stat-icon purple">⏱️</div><div class="stat-info"><span class="stat-value" id="stat-time">0h</span><span class="stat-label">学习时长</span></div></div>
+                    </div>
+                    <div class="dashboard-grid">
+                        <div class="dashboard-card"><h3 class="card-title">📅 今日学习任务</h3><div id="today-tasks" class="task-list"><div class="empty-state">暂无任务，去刷题吧！</div></div></div>
+                        <div class="dashboard-card"><h3 class="card-title">📈 各科正确率</h3><div class="chart-container"><canvas id="subject-chart"></canvas></div></div>
+                    </div>
+                    <div class="dashboard-grid">
+                        <div class="dashboard-card"><h3 class="card-title">❌ 最近错题</h3><div id="recent-wrong" class="recent-list"><div class="empty-state">暂无错题记录</div></div></div>
+                        <div class="dashboard-card"><h3 class="card-title">⚡ 快速开始</h3><div class="quick-actions">
+                            <button class="quick-btn" onclick="navigateTo('quiz')"><span class="quick-icon">✏️</span><span>开始刷题</span></button>
+                            <button class="quick-btn" onclick="navigateTo('review')"><span class="quick-icon">🔄</span><span>智能复习</span></button>
+                            <button class="quick-btn" onclick="navigateTo('aichat')"><span class="quick-icon">🤖</span><span>AI 答疑</span></button>
+                            <button class="quick-btn" onclick="navigateTo('pastpapers')"><span class="quick-icon">📋</span><span>真题模考</span></button>
+                        </div></div>
+                    </div>
+                </section>
+                <section id="page-materials" class="page">
+                    <div class="page-header">
+                        <div class="page-header-left"><h3>复习资料</h3><p class="page-desc">管理你的讲义、笔记、真题等所有复习资料</p></div>
+                        <div class="page-header-right">
+                            <select class="filter-select" id="material-subject-filter" onchange="renderMaterials()"><option value="all">全部科目</option></select>
+                            <button class="btn btn-primary" onclick="showUploadModal()">📤 上传资料</button>
+                        </div>
+                    </div>
+                    <div class="material-tabs">
+                        <button class="material-tab active" data-type="all" onclick="filterMaterials('all')">全部</button>
+                        <button class="material-tab" data-type="notes" onclick="filterMaterials('notes')">讲义笔记</button>
+                        <button class="material-tab" data-type="pastpaper" onclick="filterMaterials('pastpaper')">历年真题</button>
+                        <button class="material-tab" data-type="markscheme" onclick="filterMaterials('markscheme')">评分标准</button>
+                        <button class="material-tab" data-type="summary" onclick="filterMaterials('summary')">考点总结</button>
+                    </div>
+                    <div id="materials-grid" class="materials-grid"></div>
+                </section>
+                <section id="page-quiz" class="page">
+                    <div id="quiz-setup" class="quiz-setup">
+                        <h3>选择练习模式</h3>
+                        <p class="page-desc">从内置题库中选择题目开始练习</p>
+                        <div class="quiz-modes">
+                            <div class="mode-card" onclick="startQuiz('sequential')"><div class="mode-icon">📖</div><h4>顺序刷题</h4><p>按科目章节顺序逐题练习</p></div>
+                            <div class="mode-card" onclick="startQuiz('random')"><div class="mode-icon">🎲</div><h4>随机刷题</h4><p>从选定范围随机抽题练习</p></div>
+                            <div class="mode-card" onclick="startQuiz('wrong')"><div class="mode-icon">❌</div><h4>错题重刷</h4><p>只练习做错的题目，攻克薄弱点</p></div>
+                            <div class="mode-card" onclick="startQuiz('weak')"><div class="mode-icon">🎯</div><h4>薄弱点专项</h4><p>针对正确率低的知识点集中练习</p></div>
+                        </div>
+                        <div class="quiz-config">
+                            <h4>练习配置</h4>
+                            <div class="config-row">
+                                <div class="config-item"><label>选择科目</label><select id="quiz-subject"><option value="all">全部科目</option></select></div>
+                                <div class="config-item"><label>题目数量</label><select id="quiz-count"><option value="5">5 题</option><option value="10" selected>10 题</option><option value="20">20 题</option><option value="0">全部题目</option></select></div>
+                                <div class="config-item"><label>难度</label><select id="quiz-difficulty"><option value="all">全部难度</option><option value="easy">简单</option><option value="medium">中等</option><option value="hard">困难</option></select></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="quiz-playing" class="quiz-playing hidden">
+                        <div class="quiz-header">
+                            <div class="quiz-progress"><span id="quiz-current">1</span> / <span id="quiz-total">10</span></div>
+                            <div class="quiz-timer">⏱️ <span id="quiz-timer">00:00</span></div>
+                            <button class="btn btn-outline btn-sm" onclick="exitQuiz()">退出</button>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" id="quiz-progress-fill"></div></div>
+                        <div class="question-card" id="question-card">
+                            <div class="question-meta"><span class="q-badge" id="q-subject">数学</span><span class="q-badge" id="q-difficulty">中等</span><span class="q-badge" id="q-topic">代数</span></div>
+                            <div class="question-text" id="question-text"></div>
+                            <div class="options-list" id="options-list"></div>
+                            <div class="question-result hidden" id="question-result"><div class="result-header" id="result-header"></div><div class="result-answer" id="result-answer"></div><div class="result-explanation" id="result-explanation"></div></div>
+                        </div>
+                        <div class="quiz-footer">
+                            <button class="btn btn-outline" id="btn-prev" onclick="prevQuestion()">上一题</button>
+                            <button class="btn btn-primary" id="btn-submit" onclick="submitAnswer()">提交答案</button>
+                            <button class="btn btn-primary hidden" id="btn-next" onclick="nextQuestion()">下一题</button>
+                        </div>
+                    </div>
+                    <div id="quiz-result" class="quiz-result-page hidden">
+                        <div class="result-summary">
+                            <div class="result-score-circle">
+                                <svg viewBox="0 0 120 120">
+                                    <circle cx="60" cy="60" r="54" fill="none" stroke="#e0e0e0" stroke-width="10"/>
+                                    <circle cx="60" cy="60" r="54" fill="none" stroke="#2980b9" stroke-width="10" stroke-dasharray="339.292" stroke-dashoffset="339.292" id="score-circle" transform="rotate(-90 60 60)" stroke-linecap="round"/>
+                                </svg>
+                                <div class="score-text"><span id="result-percent">0%</span><span id="result-grade">--</span></div>
+                            </div>
+                            <h3>练习完成！</h3>
+                            <div class="result-stats">
+                                <div class="result-stat"><span class="rs-value" id="result-correct">0</span><span class="rs-label">答对</span></div>
+                                <div class="result-stat"><span class="rs-value" id="result-wrong">0</span><span class="rs-label">答错</span></div>
+                                <div class="result-stat"><span class="rs-value" id="result-time">0:00</span><span class="rs-label">用时</span></div>
+                            </div>
+                        </div>
+                        <div class="result-actions">
+                            <button class="btn btn-primary" onclick="reviewWrong()">查看错题</button>
+                            <button class="btn btn-outline" onclick="restartQuiz()">再来一组</button>
+                            <button class="btn btn-outline" onclick="navigateTo('dashboard')">返回首页</button>
+                        </div>
+                    </div>
+                </section>
+                <section id="page-pastpapers" class="page">
+                    <div class="page-header"><div class="page-header-left"><h3>历年真题 (Past Papers)</h3><p class="page-desc">按年份、考季、Paper 管理真题，支持计时模考</p></div></div>
+                    <div class="pastpaper-filters">
+                        <select id="pp-subject" onchange="renderPastPapers()"><option value="all">全部科目</option></select>
+                        <select id="pp-year" onchange="renderPastPapers()"><option value="all">全部年份</option><option value="2024">2024</option><option value="2023">2023</option><option value="2022">2022</option></select>
+                        <select id="pp-season" onchange="renderPastPapers()"><option value="all">全部考季</option><option value="m">Feb/March</option><option value="s">May/June</option><option value="w">Oct/Nov</option></select>
+                    </div>
+                    <div id="pastpapers-list" class="pastpapers-list"></div>
+                </section>
+                <section id="page-review" class="page">
+                    <div class="page-header"><div class="page-header-left"><h3>智能复习 (SRS)</h3><p class="page-desc">基于艾宾浩斯遗忘曲线，在最佳时间点复习</p></div></div>
+                    <div class="review-overview">
+                        <div class="review-stat"><span class="rs-num" id="review-due-today">0</span><span class="rs-label">今日待复习</span></div>
+                        <div class="review-stat"><span class="rs-num" id="review-mastered">0</span><span class="rs-label">已掌握</span></div>
+                        <div class="review-stat"><span class="rs-num" id="review-learning">0</span><span class="rs-label">学习中</span></div>
+                    </div>
+                    <div class="review-card"><h4>📌 今日复习任务</h4><div id="review-tasks" class="review-tasks"><div class="empty-state">今日没有需要复习的内容，去学习新知识吧！</div></div><button class="btn btn-primary" id="start-review-btn" onclick="startReviewSession()">开始今日复习</button></div>
+                    <div class="review-card"><h4>📊 记忆状态分布</h4><div class="memory-bars" id="memory-bars"></div></div>
+                </section>
+                <section id="page-flashcards" class="page">
+                    <div class="page-header"><div class="page-header-left"><h3>闪卡记忆 (Flashcards)</h3><p class="page-desc">概念-定义卡片，高效记忆核心知识点</p></div><button class="btn btn-primary" onclick="showAddCardModal()">+ 新建闪卡</button></div>
+                    <div class="flashcard-decks" id="flashcard-decks"></div>
+                    <div id="flashcard-study" class="flashcard-study hidden">
+                        <div class="flashcard-container">
+                            <div class="flashcard" id="flashcard" onclick="flipCard()"><div class="flashcard-front" id="card-front"></div><div class="flashcard-back" id="card-back"></div></div>
+                            <div class="flashcard-progress"><span id="card-current">1</span> / <span id="card-total">10</span></div>
+                            <div class="flashcard-actions">
+                                <button class="btn btn-danger" onclick="rateCard('again')">没记住</button>
+                                <button class="btn btn-warning" onclick="rateCard('hard')">模糊</button>
+                                <button class="btn btn-success" onclick="rateCard('good')">记住了</button>
+                                <button class="btn btn-outline" onclick="exitFlashcard()">退出</button>
+                            </div>
+                            <p class="flashcard-hint">💡 点击卡片翻转查看答案</p>
+                        </div>
+                    </div>
+                </section>
+                <section id="page-wrongbook" class="page">
+                    <div class="page-header">
+                        <div class="page-header-left"><h3>错题本</h3><p class="page-desc">自动收集做错的题目，支持分类和重练</p></div>
+                        <div class="page-header-right"><select class="filter-select" id="wrong-filter" onchange="renderWrongBook()"><option value="all">全部科目</option></select><button class="btn btn-primary" onclick="startWrongQuiz()">🔄 错题重练</button></div>
+                    </div>
+                    <div class="wrong-stats">
+                        <div class="wrong-stat-item"><span class="ws-num" id="wrong-total">0</span><span class="ws-label">错题总数</span></div>
+                        <div class="wrong-stat-item"><span class="ws-num" id="wrong-concept">0</span><span class="ws-label">概念不清</span></div>
+                        <div class="wrong-stat-item"><span class="ws-num" id="wrong-careless">0</span><span class="ws-label">粗心失误</span></div>
+                        <div class="wrong-stat-item"><span class="ws-num" id="wrong-unknown">0</span><span class="ws-label">完全不会</span></div>
+                    </div>
+                    <div id="wrong-list" class="wrong-list"></div>
+                </section>
+                <section id="page-aichat" class="page">
+                    <div class="chat-container">
+                        <div class="chat-header"><div class="chat-ai-info"><div class="chat-avatar">🤖</div><div><h4>IGCSE AI 助教</h4><span class="chat-status">基于你的资料回答 · 引用来源</span></div></div></div>
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="message ai-message"><div class="msg-avatar">🤖</div><div class="msg-content"><p>你好！我是你的 IGCSE AI 助教 📚</p><p>我可以帮你：</p><ul><li>解答科目知识点疑问</li><li>讲解题目解题思路</li><li>基于上传资料精准回答</li><li>生成考点总结和记忆口诀</li></ul><p>有什么问题尽管问我吧！</p></div></div>
+                        </div>
+                        <div class="chat-suggestions" id="chat-suggestions">
+                            <button class="suggestion-chip" onclick="sendSuggestion('解释一下被动语态')">被动语态</button>
+                            <button class="suggestion-chip" onclick="sendSuggestion('条件句有哪些类型')">条件句</button>
+                            <button class="suggestion-chip" onclick="sendSuggestion('什么是网络拓扑')">网络拓扑</button>
+                            <button class="suggestion-chip" onclick="sendSuggestion('二进制怎么转十进制')">二进制转换</button>
+                            <button class="suggestion-chip" onclick="sendSuggestion('常见排序算法有哪些')">排序算法</button>
+                            <button class="suggestion-chip" onclick="sendSuggestion('解释一下牛顿第二定律')">牛顿第二定律</button>
+                        </div>
+                        <div class="chat-input-area"><textarea id="chat-input" placeholder="输入你的问题..." rows="1" onkeydown="handleChatKeydown(event)"></textarea><button class="btn btn-primary chat-send" onclick="sendChatMessage()">发送</button></div>
+                    </div>
+                </section>
+                <section id="page-analytics" class="page">
+                    <div class="page-header"><div class="page-header-left"><h3>学习分析</h3><p class="page-desc">全面了解你的学习状况和薄弱环节</p></div></div>
+                    <div class="analytics-grid">
+                        <div class="analytics-card"><h4>📈 每日做题趋势</h4><div class="chart-container"><canvas id="trend-chart"></canvas></div></div>
+                        <div class="analytics-card"><h4>🎯 各科掌握度</h4><div class="chart-container"><canvas id="radar-chart"></canvas></div></div>
+                    </div>
+                    <div class="analytics-grid">
+                        <div class="analytics-card"><h4>📊 难度正确率</h4><div class="chart-container"><canvas id="difficulty-chart"></canvas></div></div>
+                        <div class="analytics-card"><h4>⚠️ 薄弱知识点</h4><div id="weak-topics" class="weak-topics"><div class="empty-state">数据不足，多做一些题再来看看</div></div></div>
+                    </div>
+                </section>
+                <section id="page-members" class="page">
+                    <div class="page-header"><div class="page-header-left"><h3>成员管理</h3><p class="page-desc">邀请好友一起备考，管理访问权限</p></div></div>
+                    <div class="share-section">
+                        <div class="share-card"><h4>🔗 邀请链接</h4><p>分享链接给好友，点击即可加入你的备考空间</p><div class="share-link-box"><input type="text" id="invite-link" readonly value="https://igcse-study.app/invite/abc123xyz"><button class="btn btn-primary btn-sm" onclick="copyInviteLink()">复制</button></div><div class="share-config"><label>链接有效期：<select><option>7 天</option><option>30 天</option><option>永久</option></select></label><label>加入后角色：<select><option>协作者</option><option>只读访客</option></select></label></div></div>
+                        <div class="share-card"><h4>🔑 访问密码</h4><p>好友输入密码即可访问站点</p><div class="share-link-box"><input type="text" id="access-code" readonly value="IGCSE2024"><button class="btn btn-outline btn-sm" onclick="regenerateCode()">重新生成</button></div><p class="share-tip">当前密码对应权限：只读访客</p></div>
+                    </div>
+                    <div class="members-list-section"><h4>👥 成员列表</h4><div id="members-list" class="members-list"></div></div>
+                </section>
+                <section id="page-settings" class="page">
+                    <div class="page-header"><div class="page-header-left"><h3>设置</h3><p class="page-desc">个性化你的备考空间</p></div></div>
+                    <div class="settings-section"><h4>🏫 站点设置</h4>
+                        <div class="setting-item"><div class="setting-info"><span class="setting-label">站点名称</span><span class="setting-desc">显示在浏览器标题和首页</span></div><input type="text" id="setting-sitename" value="我的IGCSE备考空间" class="setting-input"></div>
+                        <div class="setting-item"><div class="setting-info"><span class="setting-label">目标考试局</span><span class="setting-desc">默认加载对应考纲结构</span></div><select id="setting-board" class="setting-input"><option value="cie">Cambridge CIE</option><option value="edexcel">Edexcel</option><option value="aqa">AQA</option></select></div>
+                        <div class="setting-item"><div class="setting-info"><span class="setting-label">考试日期</span><span class="setting-desc">用于首页倒计时提醒</span></div><input type="date" id="setting-exam-date" class="setting-input" value="2027-05-15"></div>
+                        <div class="setting-item"><div class="setting-info"><span class="setting-label">深色模式</span><span class="setting-desc">夜间刷题保护眼睛</span></div><label class="switch"><input type="checkbox" id="setting-darkmode" onchange="toggleDarkMode()"><span class="slider"></span></label></div>
+                    </div>
+                    <div class="settings-section"><h4>🔔 提醒设置</h4>
+                        <div class="setting-item"><div class="setting-info"><span class="setting-label">每日复习提醒</span><span class="setting-desc">每天固定时间提醒复习</span></div><label class="switch"><input type="checkbox" id="setting-reminder" checked><span class="slider"></span></label></div>
+                        <div class="setting-item"><div class="setting-info"><span class="setting-label">提醒时间</span><span class="setting-desc">每天在此时间发送提醒</span></div><input type="time" id="setting-remind-time" value="20:00" class="setting-input"></div>
+                    </div>
+                    <div class="settings-section"><h4>💾 数据管理</h4>
+                        <div class="setting-item"><div class="setting-info"><span class="setting-label">导出全部数据</span><span class="setting-desc">导出资料、题目、错题、学习记录</span></div><button class="btn btn-outline btn-sm" onclick="exportData()">导出</button></div>
+                        <div class="setting-item"><div class="setting-info"><span class="setting-label">重置学习记录</span><span class="setting-desc">清除做题记录和错题，保留资料</span></div><button class="btn btn-danger btn-sm" onclick="resetProgress()">重置</button></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">💾 保存设置</button>
+                </section>
+            </div>
+        </main>
+    </div>
+    <div id="upload-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header"><h3>上传复习资料</h3><button class="modal-close" onclick="closeModal('upload-modal')">×</button></div>
+            <div class="modal-body">
+                <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()"><div class="upload-icon">📤</div><p>点击或拖拽文件到此处上传</p><p class="upload-hint">支持 PDF、Word、TXT、图片（JPG/PNG）</p><input type="file" id="file-input" hidden multiple accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"></div>
+                <div class="form-group"><label>资料名称</label><input type="text" id="upload-name" placeholder="给资料起个名字"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>所属科目</label><select id="upload-subject"></select></div>
+                    <div class="form-group"><label>资料类型</label><select id="upload-type"><option value="notes">讲义笔记</option><option value="pastpaper">历年真题</option><option value="markscheme">评分标准</option><option value="summary">考点总结</option><option value="other">其他</option></select></div>
+                </div>
+                <div class="form-group"><label>标签（逗号分隔）</label><input type="text" id="upload-tags" placeholder="如：重点, 第三章, 力学"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('upload-modal')">取消</button><button class="btn btn-primary" onclick="confirmUpload()">确认上传</button></div>
+        </div>
+    </div>
+    <div id="addcard-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header"><h3>新建闪卡</h3><button class="modal-close" onclick="closeModal('addcard-modal')">×</button></div>
+            <div class="modal-body">
+                <div class="form-group"><label>科目</label><select id="card-subject"></select></div>
+                <div class="form-group"><label>正面（问题/概念）</label><textarea id="card-front-input" rows="2" placeholder="如：什么是牛顿第二定律？"></textarea></div>
+                <div class="form-group"><label>背面（答案/解释）</label><textarea id="card-back-input" rows="3" placeholder="如：F=ma，物体加速度与所受合力成正比..."></textarea></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addcard-modal')">取消</button><button class="btn btn-primary" onclick="saveFlashcard()">保存闪卡</button></div>
+        </div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
