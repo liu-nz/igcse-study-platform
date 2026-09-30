@@ -37,6 +37,7 @@ function renderTypingSetup() {
     typingEl('wrong-start').disabled=!wrong.length;
     typingEl('wrong-list').innerHTML=wrong.length?wrong.map(w=>`<span class="word-chip"><b>${escapeHtml(w.word)}</b> ${escapeHtml(w.meaning)}</span>`).join(''):'<p class="page-desc">这个词库目前没有待巩固词。开始一轮默写检查记忆吧。</p>';
     if (typingData.session) renderTypingWord();
+    else if (typeof refreshKeywords === 'function') refreshKeywords(document.getElementById('page-typing'));
 }
 function startTyping(kind) {
     loadTyping();
@@ -57,7 +58,7 @@ function renderTypingWord(){
     typingEl('result').classList.add('hidden');
     typingEl('empty').classList.add('hidden');typingEl('session').classList.remove('hidden');
     typingEl('progress').textContent=`${s.index+1} / ${s.ids.length}`;
-    typingEl('category').textContent=FOCUS_LABELS[w.subject];
+    typingEl('category').textContent=(typeof VOCAB_LABELS!=='undefined'&&VOCAB_LABELS[w.subject])||FOCUS_LABELS[w.subject]||w.subject;
     typingEl('progress-fill').style.width=`${s.index/s.ids.length*100}%`;
     typingEl('prompt').textContent=s.mode==='audio'?'听发音，输入英文单词或术语':w.meaning;
     typingEl('input').value=s.draft||'';typingEl('input').readOnly=s.checked;
@@ -69,6 +70,7 @@ function renderTypingWord(){
     typingEl('feedback').innerHTML=s.checked?typingFeedback(s.results[s.index],w):'';
     // Keep the previous-answer list out of sight while recalling a word.
     document.querySelector('.typing-review').classList.add('hidden');
+    if (typeof refreshKeywords === 'function') refreshKeywords(document.getElementById('typing-session'));
     typingEl('input').focus();
 }
 function hintTyping(){

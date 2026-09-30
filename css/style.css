@@ -2638,3 +2638,81 @@ button:disabled { opacity:0.5; cursor:not-allowed; }
     .typing-controls select { min-height:44px; }
     .typing-controls button { min-height:44px; }
 }
+
+/* ========================================
+   中英双语 · Bilingual add-on styles
+   仅新增规则，不改动既有版式
+   ======================================== */
+
+/* 侧边栏英文副标题 */
+.nav-text { display:flex; flex-direction:column; line-height:1.25; }
+.nav-en { font-size:11px; opacity:0.62; font-weight:400; letter-spacing:0.2px; }
+.nav-item.active .nav-en { opacity:0.85; }
+
+/* 通用英文行（标题、描述、正文的英文对照） */
+.bi-en { display:block; font-size:0.86em; line-height:1.6; font-weight:400; color:var(--text-light); margin-top:2px; }
+h1 .bi-en, h2 .bi-en, h3 .bi-en, h4 .bi-en { font-weight:400; }
+.page-desc .bi-en, .page-desc-en { font-size:13px; color:var(--text-light); }
+.en-inline { color:var(--text-light); font-weight:400; font-size:0.9em; }
+
+/* 必考点 / 单元 / 闪卡 / 资料 的英文正文 */
+.mk-content-en, .ku-keypoints-en, .en-block {
+  margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);
+  font-size:13px; line-height:1.75; color:var(--text-light); white-space:pre-line;
+}
+.mk-content-en::before, .ku-keypoints-en::before, .en-block::before {
+  content:"EN"; display:inline-block; margin-right:8px; padding:0 6px;
+  font-size:10px; font-weight:700; letter-spacing:0.5px; color:var(--primary-light);
+  background:rgba(41,128,185,0.1); border-radius:4px; vertical-align:2px;
+}
+.card-back-en { display:block; margin-top:10px; font-size:0.88em; color:var(--text-light); }
+
+/* ---------- 考点关键词标记 + 悬浮释义 ---------- */
+.kw-term {
+  cursor: help;
+  color: inherit;
+  background: rgba(230,126,34,0.14);
+  border-bottom: 2px dotted #e67e22;
+  border-radius: 3px;
+  padding: 0 2px;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+.kw-term:hover, .kw-term.is-active {
+  background: rgba(230,126,34,0.3);
+  box-shadow: 0 1px 0 rgba(230,126,34,0.6);
+}
+body.dark-mode .kw-term { background: rgba(243,156,18,0.2); border-bottom-color: var(--warning); }
+body.dark-mode .kw-term:hover, body.dark-mode .kw-term.is-active { background: rgba(243,156,18,0.36); }
+
+.kw-tooltip {
+  position: fixed;
+  z-index: 9999;
+  max-width: 320px;
+  padding: 12px 14px;
+  background: #ffffff;
+  color: #2c3e50;
+  border: 1px solid #e0e6ed;
+  border-left: 4px solid #e67e22;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+  font-size: 13px;
+  line-height: 1.7;
+  pointer-events: none;
+}
+body.dark-mode .kw-tooltip {
+  background: #16213e; color: #e0e0e0; border-color: #2a2a4a; border-left-color: var(--warning);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+}
+.kwt-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }
+.kwt-zh { font-size:15px; font-weight:700; color:var(--primary); }
+body.dark-mode .kwt-zh { color:#8fc4e8; }
+.kwt-en { font-size:12px; font-weight:600; color:var(--text-light); }
+.kwt-subj {
+  display:inline-block; margin-top:6px; padding:1px 8px; font-size:11px;
+  color:var(--primary-light); background:rgba(41,128,185,0.1); border-radius:10px;
+}
+.kwt-def { margin-top:8px; font-size:13px; color:var(--text); }
+body.dark-mode .kwt-def { color:#dfe6ee; }
+
+@media(max-width:600px){ .kw-tooltip { max-width: calc(100vw - 24px); } }
+body.no-kw .kw-term { background:none; border-bottom:none; padding:0; cursor:inherit; box-shadow:none; }

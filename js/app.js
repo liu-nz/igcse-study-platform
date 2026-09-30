@@ -58,6 +58,7 @@ function getDefaultData() {
             darkMode: false,
             reminder: true,
             remindTime: '20:00',
+            keywords: true,
         },
         dailyStats: {},
         studyTime: 0,
@@ -185,6 +186,7 @@ function enterApp() {
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('user-name').textContent = currentUser.name;
     document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+    if (typeof applyKeywordSetting === 'function') applyKeywordSetting();
     document.getElementById('user-role').textContent = currentUser.role === 'owner' ? '所有者' : currentUser.role === 'collab' ? '协作者' : '访客';
     document.getElementById('user-board').textContent = appData.settings.board.toUpperCase();
     if (appData.settings.darkMode) document.body.classList.add('dark-mode');
@@ -205,15 +207,21 @@ function navigateTo(page) {
     const pageEl = document.getElementById('page-' + page);
     if (pageEl) pageEl.classList.add('active');
     const titles = {
-        typing: '打字默写', dashboard: '首页仪表盘', materials: '资料中心', quiz: '题库刷题',
-        pastpapers: '历年真题', review: '智能复习', flashcards: '闪卡记忆',
-        mustknow: '必考点', keyunits: '重点复习单元',
-        wrongbook: '错题本', aichat: 'AI 问答', analytics: '学习分析',
-        members: '成员管理', settings: '设置'
+        typing: '打字默写 Recall & Type', dashboard: '首页仪表盘 Dashboard', materials: '资料中心 Materials', quiz: '题库刷题 Practice',
+        pastpapers: '历年真题 Past Papers', review: '智能复习 Smart Review', flashcards: '闪卡记忆 Flashcards',
+        mustknow: '必考点 Must-Know', keyunits: '重点复习单元 Key Units',
+        wrongbook: '错题本 Mistake Book', aichat: 'AI 问答 AI Tutor', analytics: '学习分析 Analytics',
+        members: '成员管理 Members', settings: '设置 Settings'
     };
     document.getElementById('page-title').textContent = titles[page] || '';
     if (window.innerWidth <= 768) closeSidebar();
     renderPage(page);
+    refreshKeywords(document.getElementById('page-' + page));
+}
+
+// 关键词高亮：调用术语库扫描指定容器内的文本节点
+function refreshKeywords(el) {
+    try { if (typeof enhanceKeywords === 'function') enhanceKeywords(el || document.body); } catch (e) { /* 术语库未加载时忽略 */ }
 }
 
 document.querySelectorAll('.nav-item').forEach(item => {
@@ -257,8 +265,8 @@ function populateFilters() {
         const sel = document.getElementById(id);
         if (!sel) return;
         const currentVal = sel.value;
-        sel.innerHTML = ['upload-subject', 'card-subject'].includes(id) ? '' : '<option value="all">全部科目</option>';
-        if (id === 'quiz-subject') sel.innerHTML = '<option value="focus">四科专项（推荐）</option>' + sel.innerHTML;
+        sel.innerHTML = ['upload-subject', 'card-subject'].includes(id) ? '' : '<option value="all">全部科目 All Subjects</option>';
+        if (id === 'quiz-subject') sel.innerHTML = '<option value="focus">四科专项（推荐）Four-subject focus</option>' + sel.innerHTML;
         subjects.forEach(s => {
             const opt = document.createElement('option');
             opt.value = s; opt.textContent = FOCUS_LABELS[s] || s;
@@ -284,14 +292,14 @@ function renderDashboard() {
     const dueCount = getDueReviewCount();
     const wrongCount = appData.wrongQuestions.length;
     const tasks = [];
-    if (dueCount > 0) tasks.push({ text: `智能复习：${dueCount} 道题目待复习`, done: false, action: "navigateTo('review')" });
-    if (wrongCount > 0) tasks.push({ text: `错题重练：${wrongCount} 道错题等待攻克`, done: false, action: "navigateTo('wrongbook')" });
-    tasks.push({ text: '每日一练：完成 10 道题目', done: totalQ > 0 && (appData.dailyStats[getTodayStr()]?.questions || 0) >= 10, action: "navigateTo('quiz')" });
-    tasks.push({ text: '闪卡复习：复习 10 张闪卡', done: false, action: "navigateTo('flashcards')" });
+    if (dueCount > 0) tasks.push({ text: `智能复习：${dueCount} 道题目待复习<span class="bi-en">Smart review: ${dueCount} questions due</span>`, done: false, action: "navigateTo('review')" });
+    if (wrongCount > 0) tasks.push({ text: `错题重练：${wrongCount} 道错题等待攻克<span class="bi-en">Redo ${wrongCount} mistakes</span>`, done: false, action: "navigateTo('wrongbook')" });
+    tasks.push({ text: '每日一练：完成 10 道题目<span class="bi-en">Daily practice: finish 10 questions</span>', done: totalQ > 0 && (appData.dailyStats[getTodayStr()]?.questions || 0) >= 10, action: "navigateTo('quiz')" });
+    tasks.push({ text: '闪卡复习：复习 10 张闪卡<span class="bi-en">Flashcards: review 10 cards</span>', done: false, action: "navigateTo('flashcards')" });
 
     const tasksEl = document.getElementById('today-tasks');
     if (tasks.length === 0) {
-        tasksEl.innerHTML = '<div class="empty-state">暂无任务，去刷题吧！</div>';
+        tasksEl.innerHTML = '<div class="empty-state">暂无任务，去刷题吧！<span class="bi-en">No tasks yet — go and practise!</span></div>';
     } else {
         tasksEl.innerHTML = tasks.map((t, i) => `
             <div class="task-item" onclick="${t.action}">
@@ -305,7 +313,7 @@ function renderDashboard() {
     const recentWrong = appData.wrongQuestions.slice(-3).reverse();
     const wrongEl = document.getElementById('recent-wrong');
     if (recentWrong.length === 0) {
-        wrongEl.innerHTML = '<div class="empty-state">暂无错题记录</div>';
+        wrongEl.innerHTML = '<div class="empty-state">暂无错题记录<span class="bi-en">No mistakes recorded yet</span></div>';
     } else {
         wrongEl.innerHTML = recentWrong.map(w => `
             <div class="wrong-item-mini" onclick="navigateTo('wrongbook')">
@@ -388,7 +396,7 @@ function renderMaterials() {
 
     const grid = document.getElementById('materials-grid');
     if (materials.length === 0) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">暂无资料，点击上方按钮上传</div>';
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">暂无资料，点击上方按钮上传<span class="bi-en">No materials yet — use the upload button above.</span></div>';
         return;
     }
     const typeNames = { notes: '讲义笔记', pastpaper: '历年真题', markscheme: '评分标准', summary: '考点总结', other: '其他' };
@@ -424,11 +432,14 @@ function openMaterial(id) {
     `;
     const contentEl = document.getElementById('material-modal-content');
     if (m.content) {
-        contentEl.innerHTML = '<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.8;color:var(--text);margin:0;">' + escapeHtml(m.content) + '</pre>';
+        let html = '<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.8;color:var(--text);margin:0;">' + escapeHtml(m.content) + '</pre>';
+        if (m.en) html += '<div class="en-block" style="white-space:pre-wrap;font-size:13px;line-height:1.8;margin-top:14px;">' + escapeHtml(m.en) + '</div>';
+        contentEl.innerHTML = html;
     } else {
-        contentEl.innerHTML = '<div class="empty-state">该资料暂无详细内容，可在上传资料时添加内容描述。</div>';
+        contentEl.innerHTML = '<div class="empty-state">该资料暂无详细内容，可在上传资料时添加内容描述。<span class="bi-en">No detailed content yet — add a description when uploading.</span></div>';
     }
     document.getElementById('material-modal').classList.remove('hidden');
+    refreshKeywords(contentEl);
 }
 
 function escapeHtml(str) {
@@ -545,9 +556,16 @@ function renderQuestion() {
     document.getElementById('quiz-progress-fill').style.width = ((quizState.currentIndex + 1) / quizState.questions.length * 100) + '%';
     document.getElementById('q-subject').textContent = q.subject;
     document.getElementById('q-difficulty').textContent = { easy: '简单', medium: '中等', hard: '困难' }[q.difficulty];
-    document.getElementById('q-topic').textContent = q.topic;
-    document.getElementById('question-text').textContent = q.question;
-    document.getElementById('q-source').textContent = q.source || '站内练习 · 非完整真题';
+    document.getElementById('q-topic').textContent = q.topic + (q.topicEn ? ' · ' + q.topicEn : '');
+    const qTextEl = document.getElementById('question-text');
+    qTextEl.textContent = q.question;
+    if (q.questionEn && q.questionEn !== q.question) {
+        const enP = document.createElement('div');
+        enP.className = 'en-block';
+        enP.textContent = q.questionEn;
+        qTextEl.appendChild(enP);
+    }
+    document.getElementById('q-source').textContent = q.source || '站内练习 · 非完整真题 In-site practice · not a full past paper';
 
     // 常考点标记
     const hotBadge = document.getElementById('q-hot');
@@ -584,9 +602,16 @@ function renderQuestion() {
         const isCorrect = quizState.selectedOption === q.answer;
         resultEl.classList.remove('hidden');
         document.getElementById('result-header').className = 'result-header ' + (isCorrect ? 'correct' : 'wrong');
-        document.getElementById('result-header').textContent = isCorrect ? '✅ 回答正确！' : '❌ 回答错误';
-        document.getElementById('result-answer').innerHTML = `正确答案：<b>${String.fromCharCode(65 + q.answer)}. ${q.options[q.answer]}</b>`;
-        document.getElementById('result-explanation').textContent = '解析：' + q.explanation;
+        document.getElementById('result-header').textContent = isCorrect ? '✅ 回答正确！ Correct!' : '❌ 回答错误 Incorrect';
+        document.getElementById('result-answer').innerHTML = `正确答案 Correct answer：<b>${String.fromCharCode(65 + q.answer)}. ${q.options[q.answer]}</b>`;
+        const expEl = document.getElementById('result-explanation');
+        expEl.textContent = '解析 Explanation：' + q.explanation;
+        if (q.explanationEn && q.explanationEn !== q.explanation) {
+            const enExp = document.createElement('div');
+            enExp.className = 'en-block';
+            enExp.textContent = q.explanationEn;
+            expEl.appendChild(enExp);
+        }
     } else {
         resultEl.classList.add('hidden');
     }
@@ -595,7 +620,8 @@ function renderQuestion() {
     document.getElementById('btn-prev').classList.toggle('hidden', quizState.currentIndex === 0);
     document.getElementById('btn-submit').classList.toggle('hidden', quizState.submitted);
     document.getElementById('btn-next').classList.toggle('hidden', !quizState.submitted);
-    document.getElementById('btn-next').textContent = quizState.currentIndex === quizState.questions.length - 1 ? '查看结果' : '下一题';
+    document.getElementById('btn-next').textContent = quizState.currentIndex === quizState.questions.length - 1 ? '查看结果 Results' : '下一题 Next';
+    refreshKeywords(document.getElementById('question-card'));
 }
 
 function selectOption(index) {
@@ -706,7 +732,7 @@ function reviewWrong() {
 }
 
 function exitQuiz() {
-    if (confirm('确定要退出本次练习吗？进度将不会保存。')) {
+    if (confirm('确定要退出本次练习吗？进度将不会保存。\nExit this practice session? Your progress will not be saved.')) {
         clearInterval(quizState.timerInterval);
         resetQuizSetup();
     }
@@ -774,7 +800,7 @@ function renderReview() {
     // 复习任务
     const tasksEl = document.getElementById('review-tasks');
     if (dueItems.length === 0) {
-        tasksEl.innerHTML = '<div class="empty-state">今日没有需要复习的内容，去学习新知识吧！</div>';
+        tasksEl.innerHTML = '<div class="empty-state">今日没有需要复习的内容，去学习新知识吧！<span class="bi-en">Nothing due today — go and learn something new!</span></div>';
         document.getElementById('start-review-btn').style.display = 'none';
     } else {
         const bySubject = {};
@@ -783,12 +809,12 @@ function renderReview() {
             bySubject[q.subject].push(q);
         });
         tasksEl.innerHTML = Object.entries(bySubject).map(([sub, qs]) => `
-            <div class="review-task-item">
-                <div class="rt-icon">📖</div>
-                <div class="rt-info">
-                    <div class="rt-title">${sub} 复习</div>
-                    <div class="rt-meta">${qs.length} 道题目待复习</div>
-                </div>
+        <div class="review-task-item">
+            <div class="rt-icon">📖</div>
+            <div class="rt-info">
+                <div class="rt-title">${sub} 复习<span class="bi-en">${sub} review</span></div>
+                <div class="rt-meta">${qs.length} 道题目待复习<span class="bi-en">${qs.length} questions due</span></div>
+            </div>
                 <div class="rt-count">${qs.length}</div>
             </div>
         `).join('');
@@ -797,10 +823,10 @@ function renderReview() {
 
     // 记忆状态分布
     const bars = [
-        { label: '未掌握', count: Object.values(appData.srsData).filter(s => s.interval <= 1).length, color: '#e74c3c' },
-        { label: '学习中', count: Object.values(appData.srsData).filter(s => s.interval > 1 && s.interval < 7).length, color: '#f39c12' },
-        { label: '熟悉', count: Object.values(appData.srsData).filter(s => s.interval >= 7 && s.interval < 21).length, color: '#3498db' },
-        { label: '已掌握', count: mastered, color: '#27ae60' },
+        { label: '未掌握 Not learned', count: Object.values(appData.srsData).filter(s => s.interval <= 1).length, color: '#e74c3c' },
+        { label: '学习中 Learning', count: Object.values(appData.srsData).filter(s => s.interval > 1 && s.interval < 7).length, color: '#f39c12' },
+        { label: '熟悉 Familiar', count: Object.values(appData.srsData).filter(s => s.interval >= 7 && s.interval < 21).length, color: '#3498db' },
+        { label: '已掌握 Mastered', count: mastered, color: '#27ae60' },
     ];
     const maxCount = Math.max(...bars.map(b => b.count), 1);
     document.getElementById('memory-bars').innerHTML = bars.map(b => `
@@ -846,7 +872,7 @@ function renderFlashcards() {
         <div class="deck-card" onclick="startFlashcard('${d.id}')">
             <div class="deck-icon">${d.icon}</div>
             <div class="deck-name">${d.name}</div>
-            <div class="deck-count">${d.cards.length} 张卡片</div>
+            <div class="deck-count">${d.cards.length} 张卡片 ${d.cards.length} cards</div>
         </div>
     `).join('');
 }
@@ -868,11 +894,20 @@ function startFlashcard(deckId) {
 
 function renderFlashcard() {
     const card = flashcardState.cards[flashcardState.currentIndex];
-    document.getElementById('card-front').textContent = card.front;
-    document.getElementById('card-back').textContent = card.back;
+    const frontEl = document.getElementById('card-front');
+    const backEl = document.getElementById('card-back');
+    frontEl.textContent = card.front;
+    backEl.textContent = card.back;
+    if (card.frontEn && card.frontEn !== card.front) {
+        const ef = document.createElement('span'); ef.className = 'card-back-en'; ef.textContent = card.frontEn; frontEl.appendChild(ef);
+    }
+    if (card.backEn && card.backEn !== card.back) {
+        const eb = document.createElement('span'); eb.className = 'card-back-en'; eb.textContent = card.backEn; backEl.appendChild(eb);
+    }
     document.getElementById('card-current').textContent = flashcardState.currentIndex + 1;
     document.getElementById('flashcard').classList.remove('flipped');
     flashcardState.flipped = false;
+    refreshKeywords(document.getElementById('flashcard'));
 }
 
 function flipCard() {
@@ -930,7 +965,7 @@ function renderWrongBook() {
 
     const list = document.getElementById('wrong-list');
     if (wrongs.length === 0) {
-        list.innerHTML = '<div class="empty-state">太棒了！没有错题</div>';
+        list.innerHTML = '<div class="empty-state">太棒了！没有错题<span class="bi-en">Excellent — no mistakes at all!</span></div>';
         return;
     }
     list.innerHTML = wrongs.map((w, idx) => `
@@ -938,19 +973,19 @@ function renderWrongBook() {
             <div class="wrong-header">
                 <span class="q-badge">${w.subject}</span>
                 <span class="q-badge">${w.topic}</span>
-                <span class="q-badge">${{easy:'简单',medium:'中等',hard:'困难'}[w.difficulty]}</span>
+                <span class="q-badge">${{easy:'简单 Easy',medium:'中等 Medium',hard:'困难 Hard'}[w.difficulty]}</span>
             </div>
             <div class="wrong-question">${w.question}</div>
             <div class="wrong-answer-row">
-                <span class="wa-wrong">你的答案：${w.wrongAnswer !== null && w.wrongAnswer !== undefined ? String.fromCharCode(65 + w.wrongAnswer) + '. ' + w.options[w.wrongAnswer] : '未作答'}</span>
-                <span class="wa-correct">正确答案：${String.fromCharCode(65 + w.answer)}. ${w.options[w.answer]}</span>
+                <span class="wa-wrong">你的答案 Your answer：${w.wrongAnswer !== null && w.wrongAnswer !== undefined ? String.fromCharCode(65 + w.wrongAnswer) + '. ' + w.options[w.wrongAnswer] : '未作答 No answer'}</span>
+                <span class="wa-correct">正确答案 Correct：${String.fromCharCode(65 + w.answer)}. ${w.options[w.answer]}</span>
             </div>
-            <div class="result-explanation" style="margin-top:8px">解析：${w.explanation}</div>
+            <div class="result-explanation" style="margin-top:8px">解析 Explanation：${w.explanation}</div>
             <div class="wrong-reason-select">
-                <span style="font-size:12px;color:var(--text-light)">错误原因：</span>
-                <button class="reason-btn ${w.reason === 'concept' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'concept')">概念不清</button>
-                <button class="reason-btn ${w.reason === 'careless' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'careless')">粗心失误</button>
-                <button class="reason-btn ${w.reason === 'unknown' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'unknown')">完全不会</button>
+                <span style="font-size:12px;color:var(--text-light)">错误原因 Reason：</span>
+                <button class="reason-btn ${w.reason === 'concept' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'concept')">概念不清 Concept gap</button>
+                <button class="reason-btn ${w.reason === 'careless' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'careless')">粗心失误 Careless</button>
+                <button class="reason-btn ${w.reason === 'unknown' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'unknown')">完全不会 Not known</button>
             </div>
         </div>
     `).join('');
@@ -1296,9 +1331,9 @@ function renderMembers() {
     list.innerHTML = MEMBERS_DATA.map(m => `
         <div class="member-item">
             <div class="member-avatar" style="background:${m.avatarColor}">${m.name.charAt(0)}</div>
-            <div class="member-info">
-                <div class="member-name">${m.name}</div>
-                <div class="member-meta">加入于 ${m.joinDate} · 最后活跃 ${m.lastActive}</div>
+        <div class="member-info">
+            <div class="member-name">${m.name}</div>
+            <div class="member-meta">加入于 Joined ${m.joinDate} · 最后活跃 Active ${m.lastActive}</div>
             </div>
             <span class="member-role-badge role-${m.role}">${m.roleName}</span>
         </div>
@@ -1326,6 +1361,21 @@ function loadSettingsForm() {
     document.getElementById('setting-darkmode').checked = appData.settings.darkMode;
     document.getElementById('setting-reminder').checked = appData.settings.reminder;
     document.getElementById('setting-remind-time').value = appData.settings.remindTime;
+    const kwSwitch = document.getElementById('setting-keywords');
+    if (kwSwitch) kwSwitch.checked = appData.settings.keywords !== false;
+    applyKeywordSetting();
+}
+
+function applyKeywordSetting() {
+    document.body.classList.toggle('no-kw', appData.settings.keywords === false);
+}
+
+function toggleKeywordMarks() {
+    const enabled = document.getElementById('setting-keywords').checked;
+    appData.settings.keywords = enabled;
+    applyKeywordSetting();
+    saveData(appData);
+    showToast(enabled ? '已开启考点关键词高亮 Keyword highlighting on' : '已关闭考点关键词高亮 Keyword highlighting off');
 }
 
 function saveSettings() {
@@ -1334,6 +1384,8 @@ function saveSettings() {
     appData.settings.examDate = document.getElementById('setting-exam-date').value;
     appData.settings.reminder = document.getElementById('setting-reminder').checked;
     appData.settings.remindTime = document.getElementById('setting-remind-time').value;
+    const kwSwitch = document.getElementById('setting-keywords');
+    if (kwSwitch) appData.settings.keywords = kwSwitch.checked;
     saveData(appData);
     document.getElementById('user-board').textContent = appData.settings.board.toUpperCase();
     updateCountdown();
@@ -1360,7 +1412,7 @@ function exportData() {
 }
 
 function resetProgress() {
-    if (confirm('确定要重置所有学习记录吗？这将清除做题记录、错题和复习数据，但保留上传的资料。')) {
+    if (confirm('确定要重置所有学习记录吗？这将清除做题记录、错题和复习数据，但保留上传的资料。\nReset all study records? This clears your practice records, mistakes and review data, but keeps uploaded materials.')) {
         appData.quizRecords = [];
         appData.wrongQuestions = [];
         appData.srsData = {};
@@ -1399,9 +1451,9 @@ function renderSubjectCards() {
                 <div class="sc-info">
                     <div class="sc-name">${s} <span class="sc-code">${info.code}</span></div>
                     <div class="sc-stats">
-                        <span>${qCount}题 Questions</span>
-                        <span class="sc-hot">🔥${hotCount}常考 Hot</span>
-                        <span>⭐${mkCount}必考点 Must-know</span>
+                        <span>${qCount} 题 Questions</span>
+                        <span class="sc-hot">🔥${hotCount} 常考 Hot</span>
+                        <span>⭐${mkCount} 必考点 Must-know</span>
                     </div>
                 </div>
                 <div class="sc-arrow">→</div>
@@ -1427,7 +1479,7 @@ function renderMustKnow() {
 
     const list = document.getElementById('mustknow-list');
     if (points.length === 0) {
-        list.innerHTML = '<div class="empty-state">该科目暂无必考点</div>';
+        list.innerHTML = '<div class="empty-state">该科目暂无必考点<span class="bi-en">No must-know points for this subject yet.</span></div>';
         return;
     }
     const subjectColors = {
@@ -1442,10 +1494,11 @@ function renderMustKnow() {
                 <div class="mk-header">
                     <span class="mk-subject-badge" style="background:${color}">${p.subject} ${p.subjectCode}</span>
                     <span class="mk-frequency ${isAnnual ? 'annual' : ''}">${isAnnual ? '🔥 ' : ''}${p.frequency}</span>
-                    <span class="mk-diff">${p.difficulty === 'easy' ? '🟢 简单' : p.difficulty === 'medium' ? '🟡 中等' : '🔴 困难'}</span>
+                    <span class="mk-diff">${p.difficulty === 'easy' ? '🟢 简单 Easy' : p.difficulty === 'medium' ? '🟡 中等 Medium' : '🔴 困难 Hard'}</span>
                 </div>
                 <h4 class="mk-title">${p.title}</h4>
                 <div class="mk-content">${p.content}</div>
+                ${p.contentEn ? `<div class="mk-content-en">${escapeHtml(p.contentEn)}</div>` : ''}
                 <div class="mk-actions">
                     <button class="btn btn-outline btn-sm" onclick="practiceMustKnow('${p.subject}')">✏️ 练相关题目 Practice</button>
                     <button class="btn btn-outline btn-sm" onclick="navigateTo('flashcards')">🃏 复习闪卡 Flashcards</button>
@@ -1453,6 +1506,7 @@ function renderMustKnow() {
             </div>
         `;
     }).join('');
+    refreshKeywords(list);
 }
 
 function practiceMustKnow(subject) {
@@ -1469,7 +1523,7 @@ function renderKeyUnits() {
 
     const list = document.getElementById('keyunits-list');
     if (units.length === 0) {
-        list.innerHTML = '<div class="empty-state">该科目暂无重点单元</div>';
+        list.innerHTML = '<div class="empty-state">该科目暂无重点单元<span class="bi-en">No key units for this subject yet.</span></div>';
         return;
     }
     const subjectColors = {
@@ -1483,7 +1537,7 @@ function renderKeyUnits() {
                 <div class="ku-header">
                     <div class="ku-title-row">
                         <span class="ku-subject" style="color:${color}">${u.subject} ${u.subjectCode}</span>
-                        <h4 class="ku-title">${u.unit}</h4>
+                        <h4 class="ku-title">${u.unit}${u.unitEn ? ' · ' + u.unitEn : ''}</h4>
                     </div>
                     <div class="ku-meta">
                         <span class="ku-importance">${u.importance}</span>
@@ -1502,16 +1556,19 @@ function renderKeyUnits() {
                         <ul class="ku-keypoints">
                             ${u.keyPoints.map(k => `<li>${k}</li>`).join('')}
                         </ul>
+                        ${u.keyPointsEn ? `<div class="ku-keypoints-en">${escapeHtml(u.keyPointsEn.join('\n'))}</div>` : ''}
                     </div>
                 </div>
-                ${u.task ? `<p class="unit-task"><strong>动手练习：</strong>${u.task}</p>` : ''}
+                ${u.task ? `<p class="unit-task"><strong>动手练习 Try this：</strong>${u.task}</p>` : ''}
+                ${u.taskEn ? `<p class="en-block" style="white-space:pre-line">${escapeHtml(u.taskEn)}</p>` : ''}
                 <div class="ku-actions">
-                    <button class="btn btn-primary btn-sm" onclick="practiceUnit('${u.subject}', '${u.id}')">✏️ 练习这个单元</button>
+                    <button class="btn btn-primary btn-sm" onclick="practiceUnit('${u.subject}', '${u.id}')">✏️ 练习这个单元 Practise this unit</button>
                     <button class="btn btn-outline btn-sm" onclick="viewUnitMustKnow('${u.subject}')">⭐ 查看必考点 Must-know</button>
                 </div>
             </div>
         `;
     }).join('');
+    refreshKeywords(list);
 }
 
 function practiceUnit(subject, unitId) {
@@ -1559,7 +1616,8 @@ function updateQuizTopics() {
  const select = document.getElementById('quiz-topic');
  const subject = document.getElementById('quiz-subject').value;
  const previous = select.value;
- const topics = [...new Set(QUESTION_BANK.filter(q=>subject === 'all' || (subject === 'focus' ? q.focus : q.subject === subject)).map(q=>q.topic))];
- select.replaceChildren(new Option('全部专题','all'), ...topics.map(t=>new Option(t,t)));
+    const topics = [...new Set(QUESTION_BANK.filter(q=>subject === 'all' || (subject === 'focus' ? q.focus : q.subject === subject)).map(q=>q.topic))];
+ const topicEn = t => (typeof FOCUS_TOPIC_EN !== 'undefined' && FOCUS_TOPIC_EN[t]) ? ' · ' + FOCUS_TOPIC_EN[t] : '';
+ select.replaceChildren(new Option('全部专题 All topics','all'), ...topics.map(t=>new Option(t + topicEn(t), t)));
  if (topics.includes(previous)) select.value=previous;
 }
