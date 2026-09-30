@@ -576,9 +576,9 @@ function renderQuestion() {
     }
 
     // 按钮
-    document.getElementById('btn-prev').style.display = quizState.currentIndex > 0 ? 'inline-flex' : 'none';
-    document.getElementById('btn-submit').style.display = !quizState.submitted ? 'inline-flex' : 'none';
-    document.getElementById('btn-next').style.display = quizState.submitted ? 'inline-flex' : 'none';
+    document.getElementById('btn-prev').classList.toggle('hidden', quizState.currentIndex === 0);
+    document.getElementById('btn-submit').classList.toggle('hidden', quizState.submitted);
+    document.getElementById('btn-next').classList.toggle('hidden', !quizState.submitted);
     document.getElementById('btn-next').textContent = quizState.currentIndex === quizState.questions.length - 1 ? '查看结果' : '下一题';
 }
 
@@ -591,6 +591,7 @@ function selectOption(index) {
 }
 
 function submitAnswer() {
+    if (quizState.submitted) return;
     if (quizState.selectedOption === null) { showToast('请先选择一个答案'); return; }
     quizState.answers[quizState.currentIndex] = quizState.selectedOption;
     quizState.submitted = true;
@@ -635,6 +636,7 @@ function prevQuestion() {
 }
 
 function nextQuestion() {
+    if (!quizState.submitted) return;
     if (quizState.currentIndex < quizState.questions.length - 1) {
         quizState.currentIndex++;
         renderQuestion();
