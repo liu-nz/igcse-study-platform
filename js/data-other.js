@@ -24,8 +24,7 @@ const PAST_PAPERS = [
 ];
 
 const MATERIALS_DATA = [
-    { id:"mat001", name:"Maths 0580 Syllabus 2024-2026 考纲", type:"summary", subject:"数学", icon:"📋", size:"2.3 MB", date:"2024-09-01", tags:["考纲 Syllabus","官方 Official"],
-      content:"IGCSE Mathematics 0580 考纲要点\n\n【试卷结构 Paper structure】\n• Paper 2 (Core)：1小时30分，70分，C-D级\n• Paper 4 (Extended)：2小时30分，130分，A*-C级\n• 两张试卷均可使用计算器\n\n【内容板块 Topics】\n1. 数 Number：百分比、比例、指数、标准形式\n2. 代数 Algebra：方程、不等式、函数、序列\n3. 形状与空间 Shape & Space：几何、三角、测量、向量\n4. 概率与统计 Probability & Statistics：数据处理、图表\n\n【评分等级 Grading】\nCore：C-G；Extended：A*-E\n建议目标C以上的学生考Extended。" },
+    {"id":"mat001","name":"Maths 0580 Extended · 2025–2027 考纲说明","type":"summary","subject":"数学","icon":"📋","size":"站内摘要","date":"2026-09-30","tags":["Extended","考纲核对"],"content":"Cambridge IGCSE Mathematics 0580 · 2025–2027\n\nExtended 考生参加 Paper 2（非计算器）和 Paper 4（计算器）。两卷均为2小时、100分，各占50%。\n\n本摘要纠正旧版本关于卷号、时长及计算器的说明。复习需要覆盖 Extended 完整内容；旧卷可以帮助巩固，但应核对当前考纲。\n\n官方完整考纲与样卷链接见“历年真题”页。来源：https://www.cambridgeinternational.org/Images/662466-2025-2027-syllabus.pdf"},
     { id:"mat002", name:"Maths 代数公式速查 Algebra Formula Sheet", type:"summary", subject:"数学", icon:"📋", size:"0.6 MB", date:"2024-09-05", tags:["公式 Formula","代数 Algebra"],
       content:"代数核心公式 Algebra Core Formulas\n\n【二次方程 Quadratic】\n• 求根公式 Quadratic formula：x = (-b ± √(b²-4ac)) / 2a\n• 判别式 Discriminant：Δ = b² - 4ac\n• 韦达定理 Vieta：x₁+x₂ = -b/a，x₁x₂ = c/a\n\n【因式分解 Factorisation】\n• a² - b² = (a+b)(a-b)\n• a² + 2ab + b² = (a+b)²\n\n【线性方程 Linear】\n• 斜率 Slope：m = (y₂-y₁)/(x₂-x₁)\n• 点斜式 Point-slope：y-y₁ = m(x-x₁)\n• 平行 Parallel：m₁=m₂；垂直 Perpendicular：m₁×m₂=-1\n\n【指数 Laws of indices】\n• aᵐ × aⁿ = aᵐ⁺ⁿ\n• aᵐ / aⁿ = aᵐ⁻ⁿ\n• (aᵐ)ⁿ = aᵐⁿ\n• a⁰ = 1；a⁻ⁿ = 1/aⁿ" },
     { id:"mat003", name:"Maths 几何定理汇总 Geometry Theorems", type:"notes", subject:"数学", icon:"📖", size:"1.8 MB", date:"2024-09-08", tags:["几何 Geometry","定理 Theorems"],

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IGCSE 智能备考平台</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=20260930-focus1">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
 </head>
 <body>
@@ -112,6 +112,7 @@
                     <span class="nav-icon">🔄</span><span class="nav-text">智能复习</span>
                     <span class="nav-badge" id="review-badge">0</span>
                 </a>
+                <a class="nav-item" data-page="typing" role="button" tabindex="0"><span class="nav-icon">⌨️</span><span>打字默写</span></a>
                 <a class="nav-item" data-page="flashcards">
                     <span class="nav-icon">🃏</span><span class="nav-text">闪卡记忆</span>
                 </a>
@@ -284,6 +285,7 @@
                 <!-- 题库刷题 -->
                 <section id="page-quiz" class="page">
                     <div id="quiz-setup" class="quiz-setup">
+                        <div class="focus-banner"><strong>四科专项 · 80 道新增原创练习</strong><p>ICT 0417 · CS 0478 · ESL 0510 · Math 0580 Extended。附解析，用于巩固知识；不等同于完整真题或实操考试。</p></div>
                         <h3>选择练习模式</h3>
                         <p class="page-desc">从内置题库中选择题目开始练习</p>
                         <div class="quiz-modes">
@@ -309,11 +311,13 @@
                             </div>
                         </div>
                         <div class="quiz-config">
+                            <div class="form-group"><label for="quiz-topic">专题 Topic</label><select id="quiz-topic"><option value="all">全部专题</option></select></div>
                             <h4>练习配置</h4>
                             <div class="config-row">
                                 <div class="config-item">
                                     <label>选择科目</label>
-                                    <select id="quiz-subject">
+                                    <select id="quiz-subject" onchange="updateQuizTopics()">
+                                        <option value="focus">四科专项（推荐）</option>
                                         <option value="all">全部科目</option>
                                     </select>
                                 </div>
@@ -367,6 +371,7 @@
                                 <span class="q-badge hot-badge hidden" id="q-hot">🔥 常考 Hot</span>
                             </div>
                             <div class="question-text" id="question-text"></div>
+                            <p id="q-source" class="page-desc"></p>
                             <div class="keywords-chips hidden" id="q-keywords"></div>
                             <div class="options-list" id="options-list"></div>
                             <div class="question-result hidden" id="question-result">
@@ -425,26 +430,27 @@
                     <div class="page-header">
                         <div class="page-header-left">
                             <h3>历年真题 (Past Papers)</h3>
-                            <p class="page-desc">按年份、考季、Paper 管理真题，支持计时模考</p>
+                            <p class="page-desc">近期试卷目录、官方真题与样卷；提供评分标准、听力及实操素材。</p>
                         </div>
                     </div>
                     <div class="pastpaper-filters">
-                        <select id="pp-subject" onchange="renderPastPapers()">
+                        <select aria-label="科目" id="pp-subject" onchange="renderPastPapers()">
                             <option value="all">全部科目</option>
                         </select>
-                        <select id="pp-year" onchange="renderPastPapers()">
+                        <select aria-label="年份" id="pp-year" onchange="renderPastPapers()">
                             <option value="all">全部年份</option>
-                            <option value="2024">2024</option>
+                            <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
                             <option value="2023">2023</option>
                             <option value="2022">2022</option>
                         </select>
-                        <select id="pp-season" onchange="renderPastPapers()">
+                        <select aria-label="考季" id="pp-season" onchange="renderPastPapers()">
                             <option value="all">全部考季</option>
                             <option value="m">Feb/March</option>
                             <option value="s">May/June</option>
-                            <option value="w">Oct/Nov</option>
+                            <option value="w">Oct/Nov</option><option value="sp">官方样卷 Specimen</option>
                         </select>
                     </div>
+                    <div class="focus-banner"><strong>先按考试年份确认考纲</strong><p>2026 目录为第三方整理；官方公开精选以 2024 真题和适用样卷为主。数学只收录 Extended 卷。本站不将随机题包装成真题模考。</p><div id="syllabus-links" class="resource-actions"></div></div>
                     <div id="pastpapers-list" class="pastpapers-list"></div>
                 </section>
 
@@ -778,12 +784,39 @@
                     <div id="mustknow-list" class="mustknow-list"></div>
                 </section>
 
+
+                <section id="page-typing" class="page">
+                    <div class="page-header"><div><h3>⌨️ 打字默写 · Recall & Type</h3><p class="page-desc">先回忆，再输入。100 个 ESL 词汇与 ICT、CS、数学术语。</p></div></div>
+                    <div id="typing-stats" class="typing-stats" aria-live="polite"></div>
+                    <div class="typing-controls">
+                        <label>词库<select id="typing-subject" onchange="renderTypingSetup()"><option value="all">四科全部</option><option value="ICT">ICT 0417</option><option value="计算机科学">CS 0478</option><option value="英语" selected>ESL 0510</option><option value="数学">Math 0580</option></select></label>
+                        <label>练习方式<select id="typing-mode"><option value="meaning">看释义默写</option><option value="audio">听音默写</option></select></label>
+                        <label>本轮词数<select id="typing-count"><option value="10">10 个</option><option value="20">20 个</option><option value="0">全部</option></select></label>
+                        <button class="btn btn-primary" onclick="startTyping('all')">开始默写</button>
+                        <button class="btn btn-outline" id="typing-wrong-start" onclick="startTyping('wrong')">错词重练</button>
+                    </div>
+                    <p class="page-desc">进度只保存在本浏览器，并按登录账号区分。听音使用设备合成语音；不可用时请切换释义模式。</p>
+                    <p id="typing-storage-warning" role="status" class="hidden">浏览器无法保存进度，本次仍可练习；关闭页面后可能丢失记录。</p>
+                    <div id="typing-empty" class="focus-banner">选好词库后开始。按 Enter 检查答案，再按 Enter 进入下一词；支持常见英美拼写。</div>
+                    <div id="typing-session" class="typing-card hidden">
+                        <div class="typing-card-top"><span id="typing-progress"></span><span id="typing-category"></span><button class="btn btn-outline btn-sm" onclick="stopTyping()">结束本轮</button></div>
+                        <div class="progress-bar"><div id="typing-progress-fill" class="progress-fill"></div></div>
+                        <h4 id="typing-prompt"></h4>
+                        <div class="typing-tools"><button class="btn btn-outline btn-sm" id="typing-listen" onclick="speakTypingWord()">🔊 听发音</button><button class="btn btn-outline btn-sm" id="typing-hint" onclick="hintTyping()">首字母提示</button><button class="btn btn-outline btn-sm" id="typing-reveal" onclick="checkTyping(true)">查看答案</button></div>
+                        <p id="typing-hint-text" aria-live="polite"></p>
+                        <form id="typing-form"><label for="typing-input">输入英文单词或术语</label><input id="typing-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer…" aria-describedby="typing-feedback"><button id="typing-check" class="btn btn-primary" type="submit">检查答案</button><button id="typing-next" class="btn btn-primary hidden" type="button" onclick="nextTyping()">下一词 →</button></form>
+                        <div id="typing-feedback" class="typing-feedback" role="status" aria-live="polite"></div>
+                    </div>
+                    <div id="typing-result" class="typing-card hidden" aria-live="polite"></div>
+                    <div class="typing-review"><h4>待巩固词汇</h4><p class="page-desc">错词、看过答案或使用过提示的词会留在这里，直到独立默写正确。</p><div id="typing-wrong-list"></div></div>
+                </section>
+
                 <!-- 重点复习单元 -->
                 <section id="page-keyunits" class="page">
                     <div class="page-header">
                         <div class="page-header-left">
                             <h3>📚 重点复习单元 Key Units</h3>
-                            <p class="page-desc">按考试大纲单元组织，明确各单元分值占比和核心知识点</p>
+                            <p class="page-desc">四科专项路线、复习要点与实操任务。复习优先级不代表命题预测或固定分值占比。</p>
                         </div>
                         <div class="page-header-right">
                             <select class="filter-select" id="keyunits-subject" onchange="renderKeyUnits()">
@@ -891,13 +924,16 @@
     <!-- Toast 提示 -->
     <div id="toast" class="toast hidden"></div>
 
-    <script src="js/data-q1.js"></script>
-    <script src="js/data-q2.js"></script>
-    <script src="js/data-flashcards.js"></script>
-    <script src="js/data-mustknow.js"></script>
-    <script src="js/data-keyunits.js"></script>
-    <script src="js/data-other.js"></script>
-    <script src="js/data.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/data-q1.js?v=20260930-focus1"></script>
+    <script src="js/data-q2.js?v=20260930-focus1"></script>
+    <script src="js/data-flashcards.js?v=20260930-focus1"></script>
+    <script src="js/data-mustknow.js?v=20260930-focus1"></script>
+    <script src="js/data-keyunits.js?v=20260930-focus1"></script>
+    <script src="js/data-other.js?v=20260930-focus1"></script>
+    <script src="js/data-focus.js?v=20260930-focus1"></script>
+    <script src="js/data-resources.js?v=20260930-focus1"></script>
+    <script src="js/data.js?v=20260930-focus1"></script>
+    <script src="js/app.js?v=20260930-focus1"></script>
+    <script src="js/typing.js?v=20260930-focus1"></script>
 </body>
 </html>

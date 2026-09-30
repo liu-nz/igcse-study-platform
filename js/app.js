@@ -171,6 +171,7 @@ function handleGuestLogin() {
 }
 
 function handleLogout() {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     currentUser = null;
     appData.currentUser = null;
     saveData(appData);
@@ -194,6 +195,8 @@ function enterApp() {
 
 // ========== 导航 ==========
 function navigateTo(page) {
+    if (currentPage === 'quiz' && page !== 'quiz') { clearInterval(quizState.timerInterval); quizState.timerInterval = null; }
+    if (currentPage === 'typing' && page !== 'typing' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     currentPage = page;
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.toggle('active', item.dataset.page === page);
@@ -202,7 +205,7 @@ function navigateTo(page) {
     const pageEl = document.getElementById('page-' + page);
     if (pageEl) pageEl.classList.add('active');
     const titles = {
-        dashboard: '首页仪表盘', materials: '资料中心', quiz: '题库刷题',
+        typing: '打字默写', dashboard: '首页仪表盘', materials: '资料中心', quiz: '题库刷题',
         pastpapers: '历年真题', review: '智能复习', flashcards: '闪卡记忆',
         mustknow: '必考点', keyunits: '重点复习单元',
         wrongbook: '错题本', aichat: 'AI 问答', analytics: '学习分析',
@@ -215,6 +218,9 @@ function navigateTo(page) {
 
 document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => navigateTo(item.dataset.page));
+    item.setAttribute('role', 'button');
+    item.tabIndex = 0;
+    item.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigateTo(item.dataset.page); } });
 });
 
 function toggleSidebar() {
@@ -229,6 +235,7 @@ function closeSidebar() {
 // ========== 页面渲染调度 ==========
 function renderPage(page) {
     switch (page) {
+        case 'typing': renderTypingSetup(); break;
         case 'dashboard': renderDashboard(); break;
         case 'materials': renderMaterials(); break;
         case 'quiz': resetQuizSetup(); break;
@@ -245,19 +252,19 @@ function renderPage(page) {
 }
 
 function populateFilters() {
-    const subjects = [...new Set(QUESTION_BANK.map(q => q.subject))];
+    const subjects = orderedSubjects();
     ['material-subject-filter', 'quiz-subject', 'wrong-filter', 'upload-subject', 'card-subject', 'pp-subject', 'mustknow-subject', 'keyunits-subject'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
         const currentVal = sel.value;
-        sel.innerHTML = id === 'quiz-subject' || id === 'material-subject-filter' || id === 'wrong-filter' || id === 'pp-subject'
-            ? '<option value="all">全部科目</option>' : '';
+        sel.innerHTML = ['upload-subject', 'card-subject'].includes(id) ? '' : '<option value="all">全部科目</option>';
+        if (id === 'quiz-subject') sel.innerHTML = '<option value="focus">四科专项（推荐）</option>' + sel.innerHTML;
         subjects.forEach(s => {
             const opt = document.createElement('option');
-            opt.value = s; opt.textContent = s;
+            opt.value = s; opt.textContent = FOCUS_LABELS[s] || s;
             sel.appendChild(opt);
         });
-        if (currentVal) sel.value = currentVal;
+        if ([...sel.options].some(o => o.value === currentVal)) sel.value = currentVal;
     });
 }
 
@@ -375,7 +382,7 @@ function filterMaterials(type) {
 
 function renderMaterials() {
     const subjectFilter = document.getElementById('material-subject-filter')?.value || 'all';
-    let materials = appData.materials;
+    let materials = appData.materials.map(m => m.id === 'mat001' ? MATERIALS_DATA.find(item => item.id === 'mat001') : m);
     if (materialFilter !== 'all') materials = materials.filter(m => m.type === materialFilter);
     if (subjectFilter !== 'all') materials = materials.filter(m => m.subject === subjectFilter);
 
@@ -462,18 +469,24 @@ function confirmUpload() {
 
 // ========== 刷题模块 ==========
 function resetQuizSetup() {
+    clearInterval(quizState.timerInterval);
+    quizState.timerInterval = null;
+    updateQuizTopics();
     document.getElementById('quiz-setup').classList.remove('hidden');
     document.getElementById('quiz-playing').classList.add('hidden');
     document.getElementById('quiz-result').classList.add('hidden');
 }
 
-function startQuiz(mode) {
+function startQuiz(mode, topicOverride = null) {
     let questions = [...QUESTION_BANK];
     const subject = document.getElementById('quiz-subject').value;
     const difficulty = document.getElementById('quiz-difficulty').value;
     const count = parseInt(document.getElementById('quiz-count').value);
 
-    if (subject !== 'all') questions = questions.filter(q => q.subject === subject);
+    if (subject === 'focus') questions = questions.filter(q => q.focus);
+    else if (subject !== 'all') questions = questions.filter(q => q.subject === subject);
+    const topic = topicOverride || document.getElementById('quiz-topic').value;
+    if (topic !== 'all') questions = questions.filter(q => q.topic === topic);
     if (difficulty !== 'all') questions = questions.filter(q => q.difficulty === difficulty);
     const hotOnly = document.getElementById('quiz-hot-only')?.checked;
     if (hotOnly) questions = questions.filter(q => q.isHot);
@@ -493,6 +506,7 @@ function startQuiz(mode) {
     if (questions.length === 0) { showToast('没有符合条件的题目'); return; }
     if (count > 0 && count < questions.length) questions = questions.slice(0, count);
 
+    clearInterval(quizState.timerInterval);
     quizState = {
         questions,
         currentIndex: 0,
@@ -514,6 +528,7 @@ function startQuiz(mode) {
 }
 
 function startQuizTimer() {
+    document.getElementById('quiz-timer').textContent = formatTime(quizState.elapsedSeconds);
     if (quizState.timerInterval) clearInterval(quizState.timerInterval);
     quizState.timerInterval = setInterval(() => {
         quizState.elapsedSeconds++;
@@ -532,6 +547,7 @@ function renderQuestion() {
     document.getElementById('q-difficulty').textContent = { easy: '简单', medium: '中等', hard: '困难' }[q.difficulty];
     document.getElementById('q-topic').textContent = q.topic;
     document.getElementById('question-text').textContent = q.question;
+    document.getElementById('q-source').textContent = q.source || '站内练习 · 非完整真题';
 
     // 常考点标记
     const hotBadge = document.getElementById('q-hot');
@@ -646,6 +662,8 @@ function nextQuestion() {
 }
 
 function finishQuiz() {
+    if (quizState.finished) return;
+    quizState.finished = true;
     clearInterval(quizState.timerInterval);
     const correct = quizState.answers.filter((a, i) => a === quizState.questions[i].answer).length;
     const total = quizState.questions.length;
@@ -733,54 +751,13 @@ function getDueReviewItems() {
 
 // ========== 历年真题 ==========
 function renderPastPapers() {
-    const subject = document.getElementById('pp-subject')?.value || 'all';
-    const year = document.getElementById('pp-year')?.value || 'all';
-    const season = document.getElementById('pp-season')?.value || 'all';
-    let papers = PAST_PAPERS;
-    if (subject !== 'all') papers = papers.filter(p => p.subject === subject);
-    if (year !== 'all') papers = papers.filter(p => p.year === year);
-    if (season !== 'all') papers = papers.filter(p => p.season === season);
-
+    const subject = document.getElementById('pp-subject').value;
+    const year = document.getElementById('pp-year').value;
+    const season = document.getElementById('pp-season').value;
+    document.getElementById('syllabus-links').innerHTML = FOCUS_SOURCES.map(s => '<a target="_blank" rel="noopener noreferrer" href="'+s.url+'">'+(FOCUS_LABELS[s.subject] || s.subject)+' · '+s.years+' 考纲 ↗</a>').join('');
+    const papers = PAPER_RESOURCES.filter(p => (subject === 'all' || p.subject === subject) && (year === 'all' || p.year === year) && (season === 'all' || p.season === season)).sort((a,b)=>Number(b.year)-Number(a.year));
     const list = document.getElementById('pastpapers-list');
-    if (papers.length === 0) {
-        list.innerHTML = '<div class="empty-state">没有符合条件的真题</div>';
-        return;
-    }
-    list.innerHTML = papers.map(p => `
-        <div class="pastpaper-item">
-            <div class="pp-icon">📄</div>
-            <div class="pp-info">
-                <div class="pp-title">${p.subject} ${p.year} ${p.seasonName} - ${p.paper} (Variant ${p.variant})</div>
-                <div class="pp-meta">
-                    <span>📋 ${p.questions} 题</span>
-                    <span>⏱️ ${p.duration}</span>
-                    <span>📝 代码: ${p.code}</span>
-                </div>
-            </div>
-            <button class="btn btn-primary btn-sm" onclick="startMockExam('${p.id}')">开始模考</button>
-        </div>
-    `).join('');
-}
-
-function startMockExam(id) {
-    const paper = PAST_PAPERS.find(p => p.id === id);
-    if (!paper) { showToast('试卷不存在'); return; }
-    showToast(`开始 ${paper.subject} 模考：${paper.year} ${paper.seasonName} ${paper.paper}`);
-    // 直接切换到刷题页面，不经过navigateTo避免resetQuizSetup干扰
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.page === 'quiz');
-    });
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-quiz').classList.add('active');
-    document.getElementById('page-title').textContent = `模考：${paper.subject} ${paper.year} ${paper.seasonName}`;
-    if (window.innerWidth <= 768) closeSidebar();
-    // 设置科目筛选
-    document.getElementById('quiz-subject').value = paper.subject;
-    document.getElementById('quiz-difficulty').value = 'all';
-    document.getElementById('quiz-count').value = '0'; // 全部题目
-    document.getElementById('quiz-hot-only').checked = false;
-    // 直接开始刷题
-    startQuiz('random');
+    list.innerHTML = papers.length ? papers.map(p => '<article class="pastpaper-item resource-card"><div class="pp-icon">📄</div><div class="pp-info"><div class="pp-title">'+(FOCUS_LABELS[p.subject] || p.subject)+' · '+p.paper+'</div><p class="pp-meta">'+p.year+' · '+(p.season === 'sp' ? '官方样卷 · 非历年真题' : 'May/June')+' · '+p.code+'</p><p class="page-desc">'+p.provider+' · 核对日期 2026-09-30</p><p class="page-desc">'+p.note+'</p><div class="resource-actions">'+p.links.map(l=>'<a class="btn btn-outline btn-sm" target="_blank" rel="noopener noreferrer" href="'+l.url+'">'+l.label+' ↗</a>').join('')+'<a target="_blank" rel="noopener noreferrer" href="'+p.source+'">来源页面 ↗</a></div></div></article>').join('') : '<div class="empty-state">没有匹配的已核对资源。可切换年份或考季查看；其他科目本轮未补充。</div>';
 }
 
 // ========== 智能复习 ==========
@@ -838,6 +815,8 @@ function renderReview() {
 function startReviewSession() {
     const dueItems = getDueReviewItems();
     if (dueItems.length === 0) { showToast('没有需要复习的内容'); return; }
+    clearInterval(quizState.timerInterval);
+    navigateTo('quiz');
     quizState = {
         questions: dueItems,
         currentIndex: 0,
@@ -1398,7 +1377,7 @@ function resetProgress() {
 function renderSubjectCards() {
     const container = document.getElementById('subject-cards');
     if (!container) return;
-    const subjects = [...new Set(QUESTION_BANK.map(q => q.subject))];
+    const subjects = orderedSubjects();
     const subjectInfo = {
         '数学': { icon: '📐', code: '0580', color: '#3498db' },
         '物理': { icon: '⚡', code: '0625', color: '#e74c3c' },
@@ -1508,7 +1487,7 @@ function renderKeyUnits() {
                     </div>
                     <div class="ku-meta">
                         <span class="ku-importance">${u.importance}</span>
-                        <span class="ku-weight">分值占比 Weight: ${u.weight}</span>
+                        <span class="ku-weight">${u.focus ? "考纲见真题资源页" : u.weight}</span>
                     </div>
                 </div>
                 <div class="ku-body">
@@ -1525,8 +1504,9 @@ function renderKeyUnits() {
                         </ul>
                     </div>
                 </div>
+                ${u.task ? `<p class="unit-task"><strong>动手练习：</strong>${u.task}</p>` : ''}
                 <div class="ku-actions">
-                    <button class="btn btn-primary btn-sm" onclick="practiceUnit('${u.subject}')">✏️ 开始练习 Start Practice</button>
+                    <button class="btn btn-primary btn-sm" onclick="practiceUnit('${u.subject}', '${u.id}')">✏️ 练习这个单元</button>
                     <button class="btn btn-outline btn-sm" onclick="viewUnitMustKnow('${u.subject}')">⭐ 查看必考点 Must-know</button>
                 </div>
             </div>
@@ -1534,9 +1514,15 @@ function renderKeyUnits() {
     }).join('');
 }
 
-function practiceUnit(subject) {
+function practiceUnit(subject, unitId) {
+    const unit = KEY_UNITS.find(u => u.id === unitId);
+    if (unit && unit.topic && !QUESTION_BANK.some(q => q.subject === subject && q.topic === unit.topic)) { navigateTo('pastpapers'); document.getElementById('pp-subject').value = subject; renderPastPapers(); showToast('该单元请使用官方听力、口语或实操资源练习'); return; }
     document.getElementById('quiz-subject').value = subject;
+    document.getElementById('quiz-difficulty').value = 'all';
+    document.getElementById('quiz-hot-only').checked = false;
     navigateTo('quiz');
+    document.getElementById('quiz-topic').value = unit?.topic || 'all';
+    startQuiz('random', unit?.topic || 'all');
 }
 
 function viewUnitMustKnow(subject) {
@@ -1566,3 +1552,14 @@ window.addEventListener('resize', () => {
         if (currentPage === 'analytics') renderAnalytics();
     }, 200);
 });
+
+
+function orderedSubjects() { return [...FOCUS_SUBJECTS, ...new Set(QUESTION_BANK.map(q=>q.subject))].filter((v,i,a)=>a.indexOf(v)===i); }
+function updateQuizTopics() {
+ const select = document.getElementById('quiz-topic');
+ const subject = document.getElementById('quiz-subject').value;
+ const previous = select.value;
+ const topics = [...new Set(QUESTION_BANK.filter(q=>subject === 'all' || (subject === 'focus' ? q.focus : q.subject === subject)).map(q=>q.topic))];
+ select.replaceChildren(new Option('全部专题','all'), ...topics.map(t=>new Option(t,t)));
+ if (topics.includes(previous)) select.value=previous;
+}

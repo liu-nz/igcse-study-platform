@@ -2597,3 +2597,44 @@ body.dark-mode .ku-weight { background: linear-gradient(135deg, #0d2f28, #0a241f
     .subject-cards-grid { grid-template-columns: 1fr; }
     .mk-actions, .ku-actions { flex-direction: column; }
 }
+
+
+/* Focus revision and recall practice */
+.focus-banner { padding:18px 22px; margin-bottom:20px; border:1px solid var(--border); border-left:4px solid var(--primary-light); background:var(--card-bg); border-radius:var(--radius-sm); }
+.focus-banner p { margin-top:6px; color:var(--text-light); line-height:1.7; }
+.resource-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:12px; }
+.resource-actions a { color:var(--primary-light); text-decoration:underline; text-underline-offset:3px; }
+.resource-card { align-items:flex-start; }
+.resource-card .pp-info { min-width:0; }
+.resource-card .page-desc { margin:6px 0; }
+.unit-task { padding:14px; margin:12px 0; border-radius:8px; background:var(--bg); line-height:1.7; }
+.typing-controls { display:flex; flex-wrap:wrap; gap:14px; align-items:end; margin:20px 0 12px; }
+.typing-controls label { display:flex; flex-direction:column; gap:6px; font-weight:600; }
+.typing-controls select { min-width:140px; padding:10px; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); color:var(--text); }
+.typing-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.typing-stats>div { padding:18px; border:1px solid var(--border); background:var(--card-bg); border-radius:12px; }
+.typing-stats strong { display:block; font-size:28px; color:var(--primary-light); }
+.typing-stats span { font-size:13px; color:var(--text-light); }
+.typing-card { max-width:820px; padding:28px; margin:22px auto; border:1px solid var(--border); border-radius:16px; background:var(--card-bg); box-shadow:var(--shadow); }
+.typing-card-top { display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap; color:var(--text-light); font-size:14px; }
+.typing-card h4 { font-size:24px; line-height:1.5; margin:26px 0 18px; }
+.typing-tools { display:flex; flex-wrap:wrap; gap:10px; }
+#typing-form label { display:block; margin-top:20px; font-weight:600; }
+#typing-input { display:block; width:100%; padding:16px; margin:8px 0 16px; border:2px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font-size:24px; }
+#typing-input:focus { outline:3px solid #3498db44; border-color:var(--primary-light); }
+#typing-hint-text { margin-top:12px; color:var(--text-light); min-height:24px; }
+.typing-feedback { margin-top:18px; line-height:1.8; overflow-wrap:anywhere; }
+.typing-correct { color:var(--success); }.typing-retry { color:var(--accent); }
+.typing-score { font-size:40px; color:var(--primary-light); }
+.typing-review { margin-top:26px; }.typing-review h4 { margin-bottom:10px; }
+#typing-wrong-list { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+.word-chip { background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:14px; }
+.word-chip b { display:block; }
+button:disabled { opacity:0.5; cursor:not-allowed; }
+@media(max-width:600px) { .typing-card { padding:18px; }.typing-controls label { flex:1; }.typing-controls select { width:100%; min-width:0; }.typing-stats>div { padding:12px; }.typing-card h4 { font-size:21px; }.resource-card { flex-direction:column; }.typing-card-top { gap:6px; } }
+@media(max-width:600px) {
+    .typing-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .typing-controls label:first-child { grid-column:1/-1; }
+    .typing-controls select { min-height:44px; }
+    .typing-controls button { min-height:44px; }
+}

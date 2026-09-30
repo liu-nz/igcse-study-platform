@@ -1,2 +1,2 @@
-/* IGCSE 备考平台数据入口 - 合并各模块数据 */
-const QUESTION_BANK = [...QUESTIONS_PART1, ...QUESTIONS_PART2];
+/* Original focus practice extends the existing question bank. */
+const QUESTION_BANK = [...FOCUS_QUESTIONS, ...QUESTIONS_PART1, ...QUESTIONS_PART2];
