@@ -168,7 +168,7 @@
                         <span class="countdown-value" id="countdown-days">--</span>
                         <span class="countdown-unit">天<span class="nav-en">days</span></span>
                     </div>
-                    <button class="icon-btn" title="通知 Notifications">🔔</button>
+                    <button class="icon-btn" title="查看提醒状态 Reminder status" onclick="showReminderStatus()">🔔</button>
                 </div>
             </header>
 
@@ -730,7 +730,7 @@
                         <div class="setting-item">
                             <div class="setting-info">
                                 <span class="setting-label">每日复习提醒<span class="bi-en">Daily reminder</span></span>
-                                <span class="setting-desc">每天固定时间提醒复习<span class="bi-en">Reminds you to revise at a set time each day.</span></span>
+                                <span class="setting-desc">网站保持打开时，在每天固定时间提醒复习<span class="bi-en">Reminds you at a set time while this site is open.</span></span>
                             </div>
                             <label class="switch">
                                 <input type="checkbox" id="setting-reminder" checked>
@@ -740,7 +740,7 @@
                         <div class="setting-item">
                             <div class="setting-info">
                                 <span class="setting-label">提醒时间<span class="bi-en">Reminder time</span></span>
-                                <span class="setting-desc">每天在此时间发送提醒<span class="bi-en">The reminder is sent at this time every day.</span></span>
+                                <span class="setting-desc">仅在网页打开时触发，不是系统后台通知<span class="bi-en">Works only while the page is open; this is not a background system notification.</span></span>
                             </div>
                             <input type="time" id="setting-remind-time" value="20:00" class="setting-input">
                         </div>
@@ -749,8 +749,8 @@
                         <h4>💾 数据管理<span class="bi-en">Data</span></h4>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <span class="setting-label">导出全部数据<span class="bi-en">Export all data</span></span>
-                                <span class="setting-desc">导出资料、题目、错题、学习记录<span class="bi-en">Export materials, questions, mistakes and study records.</span></span>
+                                <span class="setting-label">导出学习数据<span class="bi-en">Export study data</span></span>
+                                <span class="setting-desc">导出学习记录与设置，不包含账号密码或成员邮箱<span class="bi-en">Exports study records and settings without account passwords or member emails.</span></span>
                             </div>
                             <button class="btn btn-outline btn-sm" onclick="exportData()">导出 <span class="en-inline">Export</span></button>
                         </div>
@@ -857,7 +857,9 @@
                     <div class="upload-icon">📤</div>
                     <p>点击或拖拽文件到此处上传<span class="bi-en">Click or drag files here to upload</span></p>
                     <p class="upload-hint">支持 PDF、Word、TXT、图片（JPG/PNG）<span class="bi-en">PDF, Word, TXT and images (JPG/PNG)</span></p>
-                    <input type="file" id="file-input" hidden multiple accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
+                    <p class="upload-hint" id="upload-file-status">尚未选择文件<span class="bi-en">No file selected</span></p>
+                    <p class="upload-hint">当前版本仅保存文件信息到本机浏览器，文件本体不会上传云端。<span class="bi-en">This version stores file metadata locally; the actual file is not uploaded to the cloud.</span></p>
+                    <input type="file" id="file-input" hidden accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
                 </div>
                 <div class="form-group">
                     <label>资料名称 <span class="en-inline">Name</span></label>
