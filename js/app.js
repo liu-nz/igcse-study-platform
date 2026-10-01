@@ -345,6 +345,7 @@ function renderDashboard() {
     // 今日任务
     const dueCount = getDueReviewCount();
     const wrongCount = appData.wrongQuestions.length;
+    renderRevisionHub(dueCount, wrongCount);
     const tasks = [];
     if (dueCount > 0) tasks.push({ text: `智能复习：${dueCount} 道题目待复习<span class="bi-en">Smart review: ${dueCount} questions due</span>`, done: false, action: "navigateTo('review')" });
     if (wrongCount > 0) tasks.push({ text: `错题重练：${wrongCount} 道错题等待攻克<span class="bi-en">Redo ${wrongCount} mistakes</span>`, done: false, action: "navigateTo('wrongbook')" });
@@ -369,12 +370,16 @@ function renderDashboard() {
     if (recentWrong.length === 0) {
         wrongEl.innerHTML = '<div class="empty-state">暂无错题记录<span class="bi-en">No mistakes recorded yet</span></div>';
     } else {
-        wrongEl.innerHTML = recentWrong.map(w => `
+        wrongEl.innerHTML = recentWrong.map(w => {
+            const question = String(w.question || '');
+            const preview = question.length > 50 ? question.substring(0, 50) + '...' : question;
+            return `
             <div class="wrong-item-mini" onclick="navigateTo('wrongbook')">
-                <span class="wim-subject">${w.subject} · ${w.topic}</span>
-                <div class="wim-text">${w.question.length > 50 ? w.question.substring(0, 50) + '...' : w.question}</div>
+                <span class="wim-subject">${escapeHtml(w.subject || '')} · ${escapeHtml(w.topic || '')}</span>
+                <div class="wim-text">${escapeHtml(preview)}</div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
 
     // 徽章
@@ -1217,20 +1222,122 @@ function generateAIResponse(question) {
 }
 
 // ========== 学习分析 ==========
-function getWeakTopics() {
+function getWeakTopicStats() {
     const topicStats = {};
     appData.quizRecords.forEach(record => {
-        if (record.questions && record.answers) {
-            record.questions.forEach((q, i) => {
-                if (!topicStats[q.topic]) topicStats[q.topic] = { total: 0, correct: 0 };
-                topicStats[q.topic].total++;
-                if (record.answers[i] === q.answer) topicStats[q.topic].correct++;
-            });
-        }
+        if (!record.questions || !record.answers) return;
+        record.questions.forEach((q, i) => {
+            if (!q || !q.topic) return;
+            const subject = q.subject || '其他';
+            const key = subject + '::' + q.topic;
+            if (!topicStats[key]) {
+                topicStats[key] = { subject, topic: q.topic, total: 0, correct: 0 };
+            }
+            topicStats[key].total++;
+            if (record.answers[i] === q.answer) topicStats[key].correct++;
+        });
     });
-    return Object.entries(topicStats)
-        .filter(([_, s]) => s.total >= 2 && s.correct / s.total < 0.6)
-        .map(([topic]) => topic);
+
+    return Object.values(topicStats)
+        .map(stat => ({
+            ...stat,
+            accuracy: stat.total ? Math.round(stat.correct / stat.total * 100) : 0,
+        }))
+        .filter(stat => stat.total >= 2 && stat.accuracy < 60)
+        .sort((a, b) => a.accuracy - b.accuracy || b.total - a.total);
+}
+
+function getWeakTopics() {
+    return [...new Set(getWeakTopicStats().map(stat => stat.topic))];
+}
+
+function renderRevisionHub(dueCount = getDueReviewCount(), wrongCount = appData.wrongQuestions.length) {
+    const dueEl = document.getElementById('revision-due-count');
+    const wrongEl = document.getElementById('revision-wrong-count');
+    const weakEl = document.getElementById('revision-weak-count');
+    const textEl = document.getElementById('revision-priority-text');
+    const topicsEl = document.getElementById('revision-weak-topics');
+    const startBtn = document.getElementById('revision-start-btn');
+    if (!dueEl || !wrongEl || !weakEl || !textEl || !topicsEl || !startBtn) return;
+
+    const weakStats = getWeakTopicStats();
+    dueEl.textContent = dueCount;
+    wrongEl.textContent = wrongCount;
+    weakEl.textContent = weakStats.length;
+
+    if (dueCount > 0) {
+        textEl.innerHTML = `先完成 <strong>${dueCount}</strong> 道到期复习，优先巩固快要遗忘的内容。<span class="bi-en">Start with ${dueCount} due SRS item${dueCount === 1 ? '' : 's'} to reinforce memory before it fades.</span>`;
+        startBtn.innerHTML = '开始到期复习 <span class="en-inline">Start SRS review</span>';
+    } else if (wrongCount > 0) {
+        textEl.innerHTML = `今天没有到期复习，建议先重做 <strong>${wrongCount}</strong> 道当前错题。<span class="bi-en">Nothing is due, so redo your ${wrongCount} current mistake${wrongCount === 1 ? '' : 's'} first.</span>`;
+        startBtn.innerHTML = '开始错题重练 <span class="en-inline">Redo mistakes</span>';
+    } else if (weakStats.length > 0) {
+        const weakest = weakStats[0];
+        textEl.innerHTML = `建议优先补强 <strong>${escapeHtml(weakest.subject)} · ${escapeHtml(weakest.topic)}</strong>（正确率 ${weakest.accuracy}%）。<span class="bi-en">Focus on your weakest topic first (${weakest.accuracy}% accuracy).</span>`;
+        startBtn.innerHTML = '开始薄弱点专项 <span class="en-inline">Practise weak topic</span>';
+    } else {
+        textEl.innerHTML = '目前没有到期复习、错题或已识别的薄弱专题，适合完成一组 10 题常规练习。<span class="bi-en">No urgent review items found. A 10-question mixed practice set is a good next step.</span>';
+        startBtn.innerHTML = '开始 10 题练习 <span class="en-inline">Start 10 questions</span>';
+    }
+
+    if (weakStats.length === 0) {
+        topicsEl.innerHTML = '<span class="revision-weak-empty">完成更多题目后会自动识别薄弱专题 <span class="en-inline">Weak topics appear after more practice.</span></span>';
+    } else {
+        topicsEl.innerHTML = weakStats.slice(0, 3).map(stat =>
+            `<span class="revision-weak-chip">${escapeHtml(stat.subject)} · ${escapeHtml(stat.topic)} · ${stat.accuracy}%</span>`
+        ).join('');
+    }
+}
+
+function startWeakTopicPractice() {
+    const weakStats = getWeakTopicStats();
+    if (weakStats.length === 0) {
+        showToast('需要更多练习数据后才能识别薄弱专题');
+        navigateTo('quiz');
+        return;
+    }
+
+    const target = weakStats[0];
+    navigateTo('quiz');
+    const subjectSelect = document.getElementById('quiz-subject');
+    const topicSelect = document.getElementById('quiz-topic');
+    if (subjectSelect && [...subjectSelect.options].some(option => option.value === target.subject)) {
+        subjectSelect.value = target.subject;
+        updateQuizTopics();
+    }
+    if (topicSelect && [...topicSelect.options].some(option => option.value === target.topic)) {
+        topicSelect.value = target.topic;
+    }
+    startQuiz('random', target.topic);
+}
+
+function startPriorityRevision() {
+    const dueCount = getDueReviewCount();
+    if (dueCount > 0) {
+        startReviewSession();
+        return;
+    }
+    if (appData.wrongQuestions.length > 0) {
+        navigateTo('quiz');
+        startQuiz('wrong');
+        return;
+    }
+    if (getWeakTopicStats().length > 0) {
+        startWeakTopicPractice();
+        return;
+    }
+
+    navigateTo('quiz');
+    const subjectSelect = document.getElementById('quiz-subject');
+    const difficultySelect = document.getElementById('quiz-difficulty');
+    const countSelect = document.getElementById('quiz-count');
+    const hotOnly = document.getElementById('quiz-hot-only');
+    if (subjectSelect) subjectSelect.value = 'all';
+    updateQuizTopics();
+    if (difficultySelect) difficultySelect.value = 'all';
+    if (countSelect) countSelect.value = '10';
+    if (hotOnly) hotOnly.checked = false;
+    startQuiz('random');
 }
 
 function renderAnalytics() {
