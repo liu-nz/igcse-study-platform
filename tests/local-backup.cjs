@@ -1,0 +1,65 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const store = new Map();
+const elements = new Map();
+const element = id => { if (!elements.has(id)) elements.set(id,{value:'',textContent:'',disabled:false,classList:{add(){},remove(){},contains(){return true;}}});return elements.get(id); };
+const c = vm.createContext({console,Date,localStorage:{getItem:key=>store.get(key)||null,setItem:(key,v)=>store.set(key,v),removeItem:key=>store.delete(key)},document:{addEventListener(){},querySelectorAll:()=>[],getElementById:element},window:{addEventListener(){}},FLASHCARD_DECKS:[],MATERIALS_DATA:[],MEMBERS_DATA:[]});
+vm.runInContext(fs.readFileSync('js/app.js','utf8'),c);
+vm.runInContext(`const QUESTION_BANK=[{id:'q1',subject:'数学',topic:'代数',options:['a','b'],answer:0},{id:'q2',subject:'ICT',topic:'网络',options:['a','b'],answer:1}];const VOCAB_BANK=[{id:'v1'}];function showToast(){};`,c);
+vm.runInContext(fs.readFileSync('js/backup.js','utf8'),c);
+const run = code => vm.runInContext(code,c);
+run(`const raw={version:1,quizRecords:[{date:'2026-10-01',time:60,questions:[{id:'q1',question:'<img src=x onerror=alert(1)>',apiKey:'secret'}],answers:[0]}],wrongQuestions:[{id:'q1',wrongAnswer:1,date:'2026-10-01',reason:'concept'}],srsData:{q1:{interval:1,repetitions:1,easeFactor:2.5,nextReview:'2026-10-02',lastReview:'2026-10-01'}},flashcards:[{id:'deck1',subject:'ICT',name:'<img src=x>',icon:'🃏',cards:[{front:'中文',back:'English',apiKey:'secret'}]}],materials:[{id:'mat1',name:'Notes',subject:'ICT',type:'notes',date:'2026-10-01',fileName:'notes.pdf',password:'secret'}],dailyStats:{'2026-10-01':{questions:1,correct:1}},studyTime:60,typingWords:{v1:{attempts:2,correct:1,wrong:true,lastPractised:'2026-10-01'}},users:[{password:'secret'}],apiKey:'secret'};const clean=normaliseBackup(raw);const local=getDefaultData();const merged=mergeBackup(local,clean);const twice=mergeBackup(merged,clean);`);
+assert.equal(run('merged.quizRecords.length'),1);
+assert.equal(run('JSON.stringify(merged)===JSON.stringify(twice)'),true,'repeat import is idempotent');
+assert.equal(run('clean.quizRecords[0].questions[0].question'),undefined,'never use injected snapshot');
+assert.equal(run("JSON.stringify(clean).includes('secret')"),false,'allowlist credentials');
+run(`merged.wrongQuestions[0].resolved=true;merged.srsData.q1.interval=21;const conflicts=mergeBackup(merged,clean);`);
+assert.equal(run('conflicts.wrongQuestions[0].resolved'),true,'keep current mistake state');
+assert.equal(run('conflicts.srsData.q1.interval'),21,'keep current SRS');
+for (const mutation of ["x.version=100", "x.quizRecords[0].answers=[7]", "x.quizRecords[0].date='2026-02-30'", "x.flashcards[0].id=\"x');alert(1)//\"", "x.dailyStats['2026-10-01'].correct=2", "x.srsData.q1.easeFactor=-1", "x.typingWords.v1.correct=10"]) {
+ assert.throws(()=>run(`{let x=JSON.parse(JSON.stringify(raw));${mutation};normaliseBackup(x)}`),undefined,mutation);
+}
+run(`appData=merged;appData.settings.apiKey='secret';currentUser=null;const payload=buildBackupPayload();const roundtrip=normaliseBackup(payload);`);
+assert.equal(run('payload.version'),2);
+assert.equal(run("JSON.stringify(payload).includes('secret')"),false,'export secrets excluded');
+assert.equal(run('roundtrip.quizRecords[0].questions[0].id'),'q1');
+assert.equal(run('payload.quizRecords[0].questions[0].options'),undefined,'compact portable snapshots');
+run(`appData.srsData={q1:{nextReview:'2026-12-31'},q2:{nextReview:'2027-01-01'},removed:{nextReview:'2000-01-01'}};const year=getReviewSchedule('2026-12-31');`);
+assert.equal(run('year.due.length'),1);
+assert.equal(run('year.tomorrow.length'),1);
+assert.equal(run('year.nextSeven.length'),1);
+run(`appData.srsData.q1.nextReview='2027-01-07';appData.srsData.q2.nextReview='2027-01-08';`);
+assert.equal(run("getReviewSchedule('2027-01-01').nextSeven.length"),2,'inclusive day seven');
+run(`appData.srsData.q2.nextReview='2027-01-09';`);
+assert.equal(run("getReviewSchedule('2027-01-01').nextSeven.length"),1,'exclude day eight');
+(async()=>{
+ c.makeFile = obj => ({size:100,text:async()=>JSON.stringify(obj)});
+ await run('previewBackupImport(makeFile(raw))');
+ assert.equal(element('backup-confirm').disabled,false);
+ await run('previewBackupImport({size:100,text:async()=>"broken"})');
+ assert.equal(element('backup-confirm').disabled,true);
+ await run('previewBackupImport({size:6*1024*1024,text:async()=>JSON.stringify(raw)})');
+ assert.equal(element('backup-confirm').disabled,true);
+ // A slower old selection must not overwrite a newer preview.
+ let release; c.slowFile={size:100,text:()=>new Promise(resolve=>{release=resolve})};
+ const slow=run('previewBackupImport(slowFile)');
+ await run('previewBackupImport(makeFile(raw))');
+ release('broken');await slow;
+ assert.equal(element('backup-confirm').disabled,false);
+ // Failed write leaves the in-memory app and durable original untouched.
+ run("currentUser={name:'Test'};currentPage='settings';pendingBackup=clean;const beforeImport=JSON.stringify(appData)");
+ const oldSet=c.localStorage.setItem;c.localStorage.setItem=()=>{throw Error('quota')};
+ run('confirmBackupImport()');
+ assert.equal(run('JSON.stringify(appData)===beforeImport'),true);
+ c.localStorage.setItem=oldSet;
+ run("function typingStorageKey(){return 'typing-test'};let typingOwner=null;pendingBackup=clean");
+ store.set('typing-test',JSON.stringify({words:{},session:{draft:'keep my session'}}));
+ const originalTyping=store.get('typing-test');
+ c.localStorage.setItem=(key,value)=>{if(key==='igcse_study_platform')throw Error('main quota');oldSet(key,value)};
+ run('confirmBackupImport()');
+ assert.equal(store.get('typing-test'),originalTyping,'typing rollback when main write fails');
+ assert.equal(run('JSON.stringify(appData)===beforeImport'),true);
+ c.localStorage.setItem=oldSet;
+ console.log('Backup version compatibility, roundtrip, merge dedupe, conflict preservation, malformed input, credential exclusion, preview race, quota failure and calendar boundaries: passed');
+})().catch(e=>{console.error(e);process.exitCode=1});

@@ -39,7 +39,14 @@ function loadData() {
 }
 
 function saveData(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        document.getElementById('storage-save-warning')?.classList.add('hidden');
+        return true;
+    } catch (error) {
+        document.getElementById('storage-save-warning')?.classList.remove('hidden');
+        return false;
+    }
 }
 
 function getDefaultData() {
@@ -800,6 +807,7 @@ function finishQuiz() {
 
     // 保存记录
     appData.quizRecords.push({
+        id: 'quiz-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2)),
         date: getTodayStr(),
         total, correct,
         time: quizState.elapsedSeconds,
@@ -878,13 +886,16 @@ function renderPastPapers() {
 // ========== 智能复习 ==========
 function renderReview() {
     const dueItems = getDueReviewItems();
-    const totalSrs = Object.keys(appData.srsData).length;
-    const mastered = Object.values(appData.srsData).filter(s => s.interval >= 21).length;
-    const learning = totalSrs - mastered;
+    const states = QUESTION_BANK.filter(q => appData.srsData[q.id]).map(q => appData.srsData[q.id]);
+    const mastered = states.filter(s => s.interval >= 21).length;
+    const learning = states.filter(s => s.interval < 7).length;
+    const schedule = getReviewSchedule();
+    document.getElementById('review-due-tomorrow').textContent = schedule.tomorrow.length;
+    document.getElementById('review-next-seven').textContent = schedule.nextSeven.length;
 
     document.getElementById('review-due-today').textContent = dueItems.length;
     document.getElementById('review-mastered').textContent = mastered;
-    document.getElementById('review-learning').textContent = learning || totalSrs;
+    document.getElementById('review-learning').textContent = learning;
 
     // 复习任务
     const tasksEl = document.getElementById('review-tasks');
@@ -913,8 +924,8 @@ function renderReview() {
     // 记忆状态分布
     const bars = [
         { label: '新题 New', count: QUESTION_BANK.filter(q => !appData.srsData[q.id]).length, color: '#95a5a6' },
-        { label: '学习中 Learning', count: Object.values(appData.srsData).filter(s => s.interval < 7).length, color: '#e74c3c' },
-        { label: '熟悉 Familiar', count: Object.values(appData.srsData).filter(s => s.interval >= 7 && s.interval < 21).length, color: '#3498db' },
+        { label: '学习中 Learning', count: states.filter(s => s.interval < 7).length, color: '#e74c3c' },
+        { label: '熟悉 Familiar', count: states.filter(s => s.interval >= 7 && s.interval < 21).length, color: '#3498db' },
         { label: '已掌握 Mastered', count: mastered, color: '#27ae60' },
     ];
     const maxCount = Math.max(...bars.map(b => b.count), 1);
@@ -925,6 +936,19 @@ function renderReview() {
             <span class="mb-count">${b.count}</span>
         </div>
     `).join('');
+}
+
+function getReviewSchedule(today = getTodayStr()) {
+    const tomorrow = parseLocalDate(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const nextWeek = parseLocalDate(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const items = QUESTION_BANK.filter(q => appData.srsData[q.id]);
+    return {
+        due: items.filter(q => appData.srsData[q.id].nextReview <= today),
+        tomorrow: items.filter(q => appData.srsData[q.id].nextReview === formatLocalDate(tomorrow)),
+        nextSeven: items.filter(q => appData.srsData[q.id].nextReview > today && appData.srsData[q.id].nextReview <= formatLocalDate(nextWeek)),
+    };
 }
 
 function startReviewSession() {
@@ -958,12 +982,13 @@ function renderFlashcards() {
     document.getElementById('flashcard-study').classList.add('hidden');
     document.getElementById('flashcard-decks').classList.remove('hidden');
     document.getElementById('flashcard-decks').innerHTML = appData.flashcards.map(d => `
-        <div class="deck-card" onclick="startFlashcard('${d.id}')">
-            <div class="deck-icon">${d.icon}</div>
-            <div class="deck-name">${d.name}</div>
+        <div class="deck-card" data-deck-index="${appData.flashcards.indexOf(d)}">
+            <div class="deck-icon">${escapeHtml(d.icon)}</div>
+            <div class="deck-name">${escapeHtml(d.name)}</div>
             <div class="deck-count">${d.cards.length} 张卡片 ${d.cards.length} cards</div>
         </div>
     `).join('');
+    document.querySelectorAll('[data-deck-index]').forEach(card => card.addEventListener('click', () => startFlashcard(appData.flashcards[Number(card.dataset.deckIndex)].id)));
 }
 
 function startFlashcard(deckId) {
@@ -1844,25 +1869,9 @@ function showReminderStatus() {
 }
 
 function exportData() {
-    const safeMembers = Array.isArray(appData.members)
-        ? appData.members.map(({ email, ...member }) => member)
-        : [];
-    const exportPayload = {
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        quizRecords: appData.quizRecords,
-        wrongQuestions: appData.wrongQuestions,
-        srsData: appData.srsData,
-        flashcards: appData.flashcards,
-        materials: appData.materials,
-        settings: appData.settings,
-        dailyStats: appData.dailyStats,
-        studyTime: appData.studyTime,
-        streak: appData.streak,
-        lastStudyDate: appData.lastStudyDate,
-        members: safeMembers,
-        memberStats: appData.memberStats,
-    };
+    let exportPayload;
+    try { exportPayload = buildBackupPayload(); }
+    catch (error) { showToast('无法导出：' + error.message, 6000); return; }
     const dataStr = JSON.stringify(exportPayload, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
