@@ -19,7 +19,7 @@ Baseline: main 892caa1, following merged PRs #1 (stability/security) and #3 (rev
 - Minimum sample means five answer attempts, not five distinct questions; repeated practice can still bias accuracy.
 - Prior mistakes already deleted by the old behavior cannot be recovered by this change.
 
-No breaking storage schema: old mistake records remain active by default; new fields are additive. Keep draft until remaining browser review is complete.
+No breaking storage schema: old mistake records remain active by default; new fields are additive. PR #4 merged after Chrome verification on 2026-10-01; actual Safari remains unverified because the available WebKit runtime does not support macOS 13 ARM64.
 
 ## Topic filtering follow-up
 
