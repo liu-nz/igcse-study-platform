@@ -2745,3 +2745,23 @@ body.no-kw .kw-term { background:none; border-bottom:none; padding:0; cursor:inh
   .member-item { flex-wrap:wrap; }
   .member-stats { max-width:none; justify-content:flex-start; }
 }
+
+/* ========================================
+   刷题选项双语 (Bilingual quiz options)
+   英语 ESL 科目保持原样
+   ======================================== */
+.option-text .opt-zh { display:block; }
+.option-text .opt-en {
+  display:block; margin-top:3px;
+  font-size:12.5px; line-height:1.5; color:var(--text-light); font-weight:400;
+}
+body.dark-mode .option-text .opt-en { color:#a9b6c4; }
+
+.opt-en-inline {
+  font-size:0.88em; font-weight:400; color:var(--text-light);
+}
+body.dark-mode .opt-en-inline { color:#a9b6c4; }
+
+@media(max-width:600px){
+  .option-text .opt-en { font-size:12px; }
+}

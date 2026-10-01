@@ -626,7 +626,7 @@ function renderQuestion() {
         }
         return `<div class="${cls}" onclick="selectOption(${i})">
             <div class="option-label">${String.fromCharCode(65 + i)}</div>
-            <div class="option-text">${opt}</div>
+            <div class="option-text">${optionHtml(opt, q.subject)}</div>
         </div>`;
     }).join('');
 
@@ -637,7 +637,7 @@ function renderQuestion() {
         resultEl.classList.remove('hidden');
         document.getElementById('result-header').className = 'result-header ' + (isCorrect ? 'correct' : 'wrong');
         document.getElementById('result-header').textContent = isCorrect ? '✅ 回答正确！ Correct!' : '❌ 回答错误 Incorrect';
-        document.getElementById('result-answer').innerHTML = `正确答案 Correct answer：<b>${String.fromCharCode(65 + q.answer)}. ${q.options[q.answer]}</b>`;
+        document.getElementById('result-answer').innerHTML = `正确答案 Correct answer：<b>${String.fromCharCode(65 + q.answer)}. ${optionInline(q.options[q.answer], q.subject)}</b>`;
         const expEl = document.getElementById('result-explanation');
         expEl.textContent = '解析 Explanation：' + q.explanation;
         if (q.explanationEn && q.explanationEn !== q.explanation) {
@@ -1013,8 +1013,8 @@ function renderWrongBook() {
             </div>
             <div class="wrong-question">${w.question}</div>
             <div class="wrong-answer-row">
-                <span class="wa-wrong">你的答案 Your answer：${w.wrongAnswer !== null && w.wrongAnswer !== undefined ? String.fromCharCode(65 + w.wrongAnswer) + '. ' + w.options[w.wrongAnswer] : '未作答 No answer'}</span>
-                <span class="wa-correct">正确答案 Correct：${String.fromCharCode(65 + w.answer)}. ${w.options[w.answer]}</span>
+                <span class="wa-wrong">你的答案 Your answer：${w.wrongAnswer !== null && w.wrongAnswer !== undefined ? String.fromCharCode(65 + w.wrongAnswer) + '. ' + optionInline(w.options[w.wrongAnswer], w.subject) : '未作答 No answer'}</span>
+                <span class="wa-correct">正确答案 Correct：${String.fromCharCode(65 + w.answer)}. ${optionInline(w.options[w.answer], w.subject)}</span>
             </div>
             <div class="result-explanation" style="margin-top:8px">解析 Explanation：${w.explanation}</div>
             <div class="wrong-reason-select">

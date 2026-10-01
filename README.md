@@ -10,6 +10,8 @@ A one-stop revision site for IGCSE candidates: materials, practice questions, sp
 - **考点关键词悬浮释义 Keyword tooltips**：454 条 IGCSE 高频考点词（含考试指令词 command words）自动加橙色虚线下划线标记，鼠标悬浮（手机端点击）即显示中文释义、英文原词与所属科目。可在「设置」中一键开关。
   454 exam keywords are auto-marked; hover (or tap) to see the meaning, English term and subject. Toggle in Settings.
 - **默写词库 Recall & Type**：848 个词条，覆盖 ICT 0417、CS 0478、ESL 0510、Maths 0580、Physics 0625、Chemistry 0620、Biology 0610、Economics 0455，支持看释义默写与听音默写。
+- **选项与答案双语 Bilingual options & answers**：题库刷题中，除英语 ESL 外的所有科目（ICT / CS / 数学 / 物理 / 化学 / 生物 / 经济）的选项与正确答案均显示「中文 + 英文」两行对照；纯数字、公式、化学式与代码类选项保持原样。
+  In quiz practice, every option and correct answer for all subjects except ESL is shown in Chinese with its English equivalent; number, formula, chemical-equation and code options stay as they are.
 - **成员与身份 Members & roles**：登录/注册/访客进入时自动登记成员，记录身份（所有者 / 协作者 / 只读访客）、加入时间、最后访问与访问次数。邮箱等详细信息仅所有者可见。
   Every sign-in registers the member with their role, join date, last visit and visit count. Contact details are owner-only.
 - **成员学习档案 Member study stats**：每位成员的总学习时长、总题量、正确率与今日数据记录在成员列表中（仅统计题库练习）。
