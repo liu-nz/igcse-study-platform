@@ -86,7 +86,7 @@ const FOCUS_QUESTION_ROWS = {
  ['函数与图像','f(x)=3x−7. Find f⁻¹(x).','(x+7)/3','3x+7','(x−7)/3','1/(3x−7)','令 y=3x−7，解出 x=(y+7)/3，再互换变量。','Let y = 3x - 7, solve for x = (y + 7)/3, then swap the variables.'],
  ['函数与图像','f(x)=2x+1, g(x)=x². Find f(g(3)).','19','49','13','37','先求 g(3)=9，再求 f(9)=19。','First g(3) = 9, then f(9) = 19.'],
  ['函数与图像','Find the gradient of the line through (2,3) and (6,11).','2','1/2','4','8','斜率=(11−3)/(6−2)=8/4=2。','Gradient = (11 - 3) divided by (6 - 2) = 8/4 = 2.'],
- ['函数与图像','Differentiate y=3x³−2x²+5.','9x²−4x','3x²−2x','9x³−4x²','9x²−4x+5','幂函数求导：nx^(n−1)；常数项导数为0。','Differentiate n x^n to n x^(n-1); the constant term differentiates to 0.'],
+ ['函数与图像','Differentiate y=3x³−2x²+5.','9x²−4x','3x²−2x','9x³−4x²','9x²−4x+5','幂函数求导：nx^(n−1)；常数项导数为0。','Differentiate a x^n to a n x^(n-1); the constant term differentiates to 0.'],
  ['函数与图像','Find the nth term of 5, 9, 13, 17, ...','4n+1','5n','4n−1','n+4','公差4，首项5，所以5+4(n−1)=4n+1。','Common difference 4 and first term 5, so 5 + 4(n - 1) = 4n + 1.'],
  ['几何与三角','Two similar solids have length ratio 2:3. What is their volume ratio?','8:27','4:9','2:3','6:9','相似立体体积比是长度比的三次方。','For similar solids the volume ratio is the cube of the length ratio.'],
  ['几何与三角','Two sides are 5 and 7 with included angle 60°. Find the opposite side.','√39','√109','√24','12','余弦定理：c²=25+49−2×5×7×cos60°=39。','Cosine rule: c squared = 25 + 49 - 2 x 5 x 7 x cos 60 degrees = 39.'],

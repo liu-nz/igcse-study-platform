@@ -41,7 +41,7 @@ function normaliseBackup(raw) {
     if (![1, 2].includes(raw.version)) throw new Error('不支持此备份版本 Unsupported backup version');
     if (raw.version === 2 && raw.format !== 'igcse-local-backup') throw new Error('不是本站备份 Not an IGCSE backup');
     const bank = new Map(QUESTION_BANK.map(q => [q.id, q]));
-    const data = { quizRecords: [], wrongQuestions: [], srsData: {}, flashcards: [], materials: [], dailyStats: {}, typingWords: {}, studyTime: backupNumber(raw.studyTime ?? 0), skipped: 0 };
+    const data = { quizRecords: [], wrongQuestions: [], srsData: {}, flashcards: [], materials: [], dailyStats: {}, typingWords: {}, commandWords: {}, studyTime: backupNumber(raw.studyTime ?? 0), skipped: 0 };
     for (const record of backupList(raw.quizRecords ?? [])) {
         backupObject(record);
         const questions = backupList(record.questions, 5000);
@@ -101,6 +101,14 @@ function normaliseBackup(raw) {
         if (correct > attempts) throw new Error('默写统计无效 Invalid recall statistics');
         data.typingWords[id] = { attempts, correct, wrong: word.wrong === true, lastPractised: backupText(word.lastPractised ?? '', 50) };
     }
+    const validCommands = new Set(typeof COMMAND_PRACTICE === 'undefined' ? [] : COMMAND_PRACTICE.map(c=>c.word));
+    for (const [word, state] of Object.entries(backupObject(raw.commandWords ?? {}))) {
+        if (!validCommands.has(word)) { data.skipped++; continue; }
+        backupObject(state);
+        const attempts=backupNumber(state.attempts), correct=backupNumber(state.correct), correctStreak=backupNumber(state.correctStreak);
+        if (correct>attempts || correctStreak>correct) throw new Error('指令词统计无效 Invalid command-word progress');
+        data.commandWords[word]={attempts,correct,correctStreak,needsReview:state.needsReview===true,lastPractised:backupDate(state.lastPractised,true)};
+    }
     return data;
 }
 function quizRecordSignature(record) {
@@ -147,6 +155,7 @@ function buildBackupPayload() {
     for (const key of ['siteName','board','examDate','darkMode','reminder','remindTime','keywords']) settings[key] = appData.settings[key];
     const payload = {format:'igcse-local-backup',version:2,exportedAt:new Date().toISOString(),settings};
     for (const key of ['quizRecords','wrongQuestions','srsData','flashcards','materials','dailyStats','studyTime']) payload[key] = appData[key];
+    if (currentUser && typeof commandWordsForOwner === 'function') payload.commandWords = commandWordsForOwner();
     if (currentUser && typeof loadTyping === 'function') { loadTyping(); payload.typingWords = typingData.words; }
     // Normalize the exported study schema too: unexpected account/key fields never travel.
     const clean = normaliseBackup(payload);
@@ -166,7 +175,7 @@ async function previewBackupImport(file) {
         const incoming = normaliseBackup(JSON.parse(await file.text()));
         if (generation !== backupPreviewVersion) return;
         pendingBackup = incoming;
-        preview.textContent = `可导入：${pendingBackup.quizRecords.length} 组练习、${pendingBackup.wrongQuestions.length} 道错题、${Object.keys(pendingBackup.srsData).length} 条 SRS、${pendingBackup.flashcards.length} 组闪卡、${pendingBackup.materials.length} 条资料索引、${Object.keys(pendingBackup.typingWords).length} 个默写词记录。跳过已不在词库/题库中的条目：${pendingBackup.skipped}。现有同题状态与设置保留，重复记录不叠加。文件本体不包含在备份内。`;
+        preview.textContent = `可导入：${pendingBackup.quizRecords.length} 组练习、${pendingBackup.wrongQuestions.length} 道错题、${Object.keys(pendingBackup.srsData).length} 条 SRS、${pendingBackup.flashcards.length} 组闪卡、${pendingBackup.materials.length} 条资料索引、${Object.keys(pendingBackup.typingWords).length} 个默写词、${Object.keys(pendingBackup.commandWords).length} 个指令词记录。跳过已不在词库/题库中的条目：${pendingBackup.skipped}。现有同题状态与设置保留，重复记录不叠加。文件本体不包含在备份内。`;
         document.getElementById('backup-confirm').disabled = false;
     } catch (error) { if (generation !== backupPreviewVersion) return; pendingBackup = null; preview.textContent = `无法导入 / Cannot import: ${error.message}`; }
 }
@@ -174,6 +183,11 @@ function confirmBackupImport() {
     if (!pendingBackup || !currentUser) return;
     if (currentPage === 'quiz' && quizState.questions.length && !quizState.finished && !document.getElementById('quiz-playing').classList.contains('hidden')) { showToast('请先完成或退出当前练习 Finish or exit your quiz first'); return; }
     const next = mergeBackup(appData, pendingBackup);
+    if (typeof quizOwnerKey === 'function') {
+        next.commandWordProgress ||= {};
+        const words=next.commandWordProgress[quizOwnerKey()] ||= {};
+        for (const [word,state] of Object.entries(pendingBackup.commandWords)) if (!Object.prototype.hasOwnProperty.call(words,word)) words[word]=state;
+    }
     const typingKey = typeof typingStorageKey === 'function' ? typingStorageKey() : null;
     let oldTyping = null, typingWritten = false;
     try {

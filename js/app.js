@@ -275,7 +275,7 @@ function navigateTo(page) {
         typing: '打字默写 Recall & Type', dashboard: '首页仪表盘 Dashboard', materials: '资料中心 Materials', quiz: '题库刷题 Practice',
         pastpapers: '历年真题 Past Papers', review: '智能复习 Smart Review', flashcards: '闪卡记忆 Flashcards',
         mustknow: '必考点 Must-Know', keyunits: '重点复习单元 Key Units',
-        wrongbook: '错题本 Mistake Book', aichat: '学习助手 Study Assistant', analytics: '学习分析 Analytics',
+        wrongbook: '错题本 Mistake Book', aichat: '学习助手 Study Assistant', commands: '考试指令词 Command Words', analytics: '学习分析 Analytics',
         members: '成员管理 Members', settings: '设置 Settings'
     };
     document.getElementById('page-title').textContent = titles[page] || '';
@@ -318,6 +318,7 @@ function renderPage(page) {
         case 'mustknow': renderMustKnow(); break;
         case 'keyunits': renderKeyUnits(); break;
         case 'wrongbook': renderWrongBook(); break;
+        case 'commands': renderCommandWords(); break;
         case 'analytics': renderAnalytics(); break;
         case 'members': canAccessPage('members') ? renderMembers() : renderAccessDenied('members'); break;
         case 'settings': loadSettingsForm(); break;
@@ -717,6 +718,7 @@ function renderQuestion() {
             enExp.textContent = '英文解析 / Exam wording：' + q.explanationEn;
             expEl.appendChild(enExp);
         }
+        expEl.insertAdjacentHTML('beforeend', examAnswerGuideHtml(q));
     } else {
         resultEl.classList.add('hidden');
     }
@@ -1151,6 +1153,7 @@ function renderWrongBook() {
                 <span class="wa-correct">正确答案 Correct：${String.fromCharCode(65 + w.answer)}. ${optionInline(w.options[w.answer], w.subject)}</span>
             </div>
             <div class="result-explanation" style="margin-top:8px">解析 Explanation：${escapeHtml(w.explanation)}</div>
+            ${examAnswerGuideHtml(w)}
             <div class="wrong-reason-select">
                 <span style="font-size:12px;color:var(--text-light)">错误原因 Reason：</span>
                 ${Object.entries(MISTAKE_REASONS).map(([reason, label]) => `<button class="reason-btn ${w.reason === reason ? 'active' : ''}" onclick="setWrongReasonByIndex(${appData.wrongQuestions.indexOf(w)}, '${reason}')">${label}</button>`).join('')}
@@ -1905,6 +1908,7 @@ function resetProgress() {
     if (confirm('确定要重置所有学习记录吗？这将清除做题记录、错题和复习数据，但保留上传的资料。\nReset all study records? This clears your practice records, mistakes and review data, but keeps uploaded materials.')) {
         appData.quizRecords = [];
         appData.quizDrafts = {};
+        appData.commandWordProgress = {};
         appData.wrongQuestions = [];
         appData.srsData = {};
         appData.dailyStats = {};
