@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IGCSE 智能备考平台 · IGCSE Smart Revision Platform</title>
-    <link rel="stylesheet" href="css/style.css?v=20261001-resume5">
+    <link rel="stylesheet" href="css/style.css?v=20261001-exam6">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
 </head>
 <body>
@@ -120,6 +120,7 @@
                 <a class="nav-item" data-page="mustknow">
                     <span class="nav-icon">⭐</span><span class="nav-text">必考点<span class="nav-en">Must-Know</span></span>
                 </a>
+                <a class="nav-item" data-page="commands" role="button" tabindex="0"><span class="nav-icon">📝</span><span class="nav-text">考试指令词<span class="nav-en">Command Words</span></span></a>
                 <a class="nav-item" data-page="keyunits">
                     <span class="nav-icon">📚</span><span class="nav-text">重点单元<span class="nav-en">Key Units</span></span>
                 </a>
@@ -736,6 +737,17 @@
                     </div>
                 </section>
 
+                <section id="page-commands" class="page">
+                    <div class="page-header"><div><h3>读懂要求，再作答 · Command Words</h3><p class="page-desc">先看指令词，再圈出情境、对象与限制。中文帮助理解，英文保留考试用语。<span class="bi-en">Read the instruction, context and constraints before answering.</span></p></div></div>
+                    <p class="page-desc">说明参考 Cambridge 官方指令词与 Math 0580 考纲；本站例题和英文表达均为原创教学示例，不是官方真题或评分标准。具体要求随科目、题目与分值而变。<span class="bi-en">Original teaching examples, not official papers or mark schemes. Apply each command in its subject and question context.</span></p>
+                    <div class="command-controls"><label for="command-search">搜索英文／中文指令词 Search<input id="command-search" type="search" class="setting-input" placeholder="explain / 解释" oninput="renderCommandWords()"></label><button class="btn btn-primary" onclick="startCommandPractice()">答法辨析 Practice</button><button id="command-review-start" class="btn btn-outline" onclick="startCommandPractice(true)">重练待巩固 Review</button></div>
+                    <p id="command-progress" class="page-desc" role="status" aria-live="polite"></p>
+                    <div id="command-training" class="dashboard-card hidden">
+                        <h4 id="command-training-title"></h4><p id="command-question"></p><div id="command-options"></div><p id="command-feedback" role="status" aria-live="polite"></p><button id="command-next" class="btn btn-primary" onclick="nextCommandPractice()" disabled>下一题 Next</button>
+                    </div>
+                    <div id="command-list" class="command-list"></div>
+                </section>
+
                 <!-- 设置 -->
                 <section id="page-settings" class="page">
                     <div class="page-header">
@@ -807,7 +819,7 @@
                         <div class="setting-item">
                             <div class="setting-info">
                                 <span class="setting-label">导出学习数据<span class="bi-en">Export study data</span></span>
-                                <span class="setting-desc">导出练习、错题、SRS、闪卡、资料索引与当前用户默写进度；不含账号、成员或 API 凭据。资料文件本体不包含在内。<span class="bi-en">Includes practice, mistakes, SRS, flashcards, local material metadata and current-user recall progress. No accounts, member records or API credentials.</span></span>
+                                <span class="setting-desc">导出练习、错题、SRS、闪卡、资料索引与当前用户默写与指令词进度；不含账号、成员或 API 凭据。资料文件本体不包含在内。<span class="bi-en">Includes practice, mistakes, SRS, flashcards, local material metadata and current-user recall and command-word progress. No accounts, member records or API credentials.</span></span>
                             </div>
                             <button class="btn btn-outline btn-sm" onclick="exportData()">导出 <span class="en-inline">Export</span></button>
                         </div>
@@ -1011,14 +1023,16 @@
     <script src="js/data-mustknow.js?v=20261001-optbi1"></script>
     <script src="js/data-keyunits.js?v=20261001-optbi1"></script>
     <script src="js/data-other.js?v=20261001-optbi1"></script>
-    <script src="js/data-focus.js?v=20261001-optbi1"></script>
+    <script src="js/data-focus.js?v=20261001-exam2"></script>
     <script src="js/data-resources.js?v=20261001-optbi1"></script>
     <script src="js/data.js?v=20261001-optbi1"></script>
-    <script src="js/glossary.js?v=20261001-optbi1"></script>
+    <script src="js/glossary.js?v=20261001-exam2"></script>
     <script src="js/data-options-i18n.js?v=20261001-optbi1"></script>
-    <script src="js/app.js?v=20261001-resume5"></script>
+    <script src="js/data-exam-skills.js?v=20261001-exam1"></script>
+    <script src="js/app.js?v=20261001-exam6"></script>
     <script src="js/quiz-recovery.js?v=20261001-resume1"></script>
-    <script src="js/backup.js?v=20261001-backup1"></script>
+    <script src="js/exam-skills.js?v=20261001-exam1"></script>
+    <script src="js/backup.js?v=20261001-exam2"></script>
     <script src="js/typing.js?v=20261001-optbi1"></script>
 </body>
 </html>

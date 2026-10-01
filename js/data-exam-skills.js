@@ -1,0 +1,55 @@
+/* Original bilingual teaching examples; source links describe command requirements, not these model answers. */
+const COMMAND_WORD_SOURCE = 'https://www.cambridgeinternational.org/exam-administration/what-to-expect-on-exams-day/command-words/';
+const MATH_COMMAND_SOURCE = 'https://www.cambridgeinternational.org/Images/662466-2025-2027-syllabus.pdf';
+function commandEntry(word, zh, task, structure, mistake, subject, prompt, reasoning, model, source = COMMAND_WORD_SOURCE) {
+    return {word,zh,task,structure,mistake,subject,prompt,reasoning,model,source};
+}
+const COMMAND_WORDS = [
+ commandEntry('state','写出','直接、明确表达答案。','The … is … / 一个明确事实或名称。','写了很长的背景，却没有回答所问的事实。','ICT','State one field that could uniquely identify a student record.','题目只要一个字段；姓名可能重复，应选择唯一编号。','A unique student ID.'),
+ commandEntry('define','定义','给出准确含义。','A … is …；说明术语的本质。','用一个例子代替定义。','计算机科学','Define an algorithm.','不是列举某种程序，而是说明算法是什么。','An algorithm is a finite sequence of ordered steps used to solve a problem.'),
+ commandEntry('identify','识别','找出或命名对应对象。','名称 / 选定对象；按题目指定范围。','选了正确类别，却没有指出具体对象。','ICT','Identify the spreadsheet function that adds a range of values.','识别求和函数，而不是平均值函数。','SUM.'),
+ commandEntry('describe','描述','说明特征或过程要点。','First … Then … / It has …','只写“很好”“很快”，没有具体特征或步骤。','计算机科学','Describe how a binary search proceeds on a sorted list.','按过程顺序写出中点比较、缩小范围和停止条件。','Compare the target with the middle item. Search the appropriate half, repeating until the item is found or the search range is empty.'),
+ commandEntry('explain','解释','说明原因、机制或关系。','… because …, so …；把原因连到结果。','重复题目现象，没有说明为什么。','ICT','Explain why a range check cannot guarantee that an entered age is correct.','范围合法不代表与真实年龄一致，需写出两者的关系。','An incorrect age can still lie within the accepted range, so passing the check does not prove that the age is correct.'),
+ commandEntry('compare','比较','按题目比较相同点和／或不同点。','A … whereas B … / Both A and B …','只谈一个对象；或误以为每次都必须同时写相同与不同。','ICT','Compare an SSD and a magnetic hard disk in terms of moving parts.','题目指定比较机械部件，只需按同一维度写两者。','An SSD has no moving mechanical parts, whereas a magnetic hard disk has spinning platters and a moving head.'),
+ commandEntry('contrast','对比差异','说明不同之处。','A … whereas B …；用相同维度对照。','只写共同点，没有回答差异。','计算机科学','Contrast lossless and lossy compression in terms of data recovery.','围绕解压后能否恢复原始数据作对照。','Lossless compression allows the original data to be recovered exactly, whereas lossy compression discards some data permanently.'),
+ commandEntry('calculate','计算','用已知信息求出数值。','公式 → 代入 → 运算 → 答案；按题目处理单位与精度。','看错单位或提前四舍五入；只抄结果而不展示所需过程。','数学','Calculate the mean of 2, 4 and 6.','先求总和，再除以数据个数。','Mean = (2 + 4 + 6) / 3 = 4.'),
+ commandEntry('show that','证明给定结果','用有顺序的证据导向给定结果。','已知 → 合理变形 → 给定结论。','把题目给出的结论当成自己的证明。','数学','Show that √72 = 6√2.','把 72 拆成完全平方数 36 与 2，写出化简过程。','√72 = √(36 × 2) = √36 × √2 = 6√2.',MATH_COMMAND_SOURCE),
+ commandEntry('justify','论证','用证据或理由支持选择。','I would choose … because …；理由联系情境。','只有结论，没有证据。','ICT','Justify using a unique student ID instead of a name as a primary key.','把主键唯一性与同名学生的情况联系起来。','A student ID can uniquely identify each record, while two students may share the same name.'),
+ commandEntry('evaluate','评价','作出有依据的判断或估计。','判断标准 → 相关证据 → 情境中的结论；计算型情境按题意求值。','列举优点，却未形成所要求的判断。','ICT','Evaluate using cloud storage for a student with unreliable internet access.','考虑访问便利、网络限制及适用结论；这只是原创示例。','Cloud storage enables access from different devices, but unreliable internet may prevent access when needed. Local copies with a separate backup would be more suitable for offline study.'),
+ commandEntry('outline','概述','列出主要要点。','Main points: …；抓主干。','陷入细节，遗漏主要步骤。','ICT','Outline the steps for a mail merge.','概述主文档、数据源、合并字段和生成文件。','Prepare the main document and data source, insert merge fields, and merge the records to generate personalised documents.'),
+ commandEntry('suggest','提出合理建议','把知识用于有多种合理答案的情境。','One possible … is … because …；符合题目信息。','提议与场景不相关，或没有说明其合理性。','ICT','Suggest one safe action after receiving an unexpected bank-password link.','不通过可疑链接核实，应使用独立可信渠道。','Open the bank’s official app or use a known address to verify the message independently.'),
+ commandEntry('summarise','总结','提炼主要内容，省去细节。','关键要点，用简洁表达；遵守题目的长度要求。','照抄大量原文或加入未给出的信息。','英语','Summarise: The club meets on Tuesdays. Sessions last one hour. New members are welcome.','保留时间、时长与报名对象，不添加自己的意见。','The club welcomes new members to its one-hour Tuesday meetings.'),
+];
+const COMMAND_PRACTICE = [
+ {word:'explain',prompt:'题目要求 Explain why validation cannot prove data is correct。应怎样作答？',options:['只重复“校验不能证明正确”','说明错误值也可能通过检查，并把原因连到结论','只列举两种文件格式'],answer:1,why:'Explain 要有原因与关系，重复结论没有解释机制。'},
+ {word:'compare',prompt:'Compare SSD and HDD in terms of moving parts。哪种答法最切题？',options:['SSD 很好。','SSD 没有机械运动部件，而 HDD 有旋转盘片与移动磁头。','它们都是电脑设备，因此不必提机械部件。'],answer:1,why:'同一维度写两者；题目要求的是机械部件方面的差异。'},
+ {word:'state',prompt:'State one valid primary-key field。哪种答法符合要求？',options:['Unique student ID.','数据库有很多历史。','我喜欢数据库。'],answer:0,why:'直接写出一个可唯一标识记录的字段。'},
+ {word:'show that',prompt:'Show that √72 = 6√2。哪种证据充分？',options:['题目说等于 6√2，所以成立。','√72 = √(36×2) = 6√2。','直接写 Yes.'],answer:1,why:'要从原式提供变形步骤，不能把已给结论当作证明。'},
+ {word:'justify',prompt:'Justify choosing a unique ID instead of a name。应该补上什么？',options:['只写“我选 ID”。','说明 ID 唯一，而姓名可能重复。','只写一次数据库的名称。'],answer:1,why:'论证需要支持理由，并与选择的情境相关。'},
+ {word:'define',prompt:'Define an algorithm。哪种答法更合适？',options:['Bubble sort.','Python.','A finite sequence of ordered steps used to solve a problem.'],answer:2,why:'给出含义，例子或编程语言名称不能代替定义。'},
+ {word:'calculate',prompt:'Calculate the area；题目给出边长的单位为 cm。你应检查什么？',options:['只检查答案有没有字母。','公式、代入、运算及面积单位 cm²。','总是删掉单位。'],answer:1,why:'计算不仅要数值，也要按题意处理单位和精度。'},
+ {word:'summarise',prompt:'Summarise a short notice。哪种做法合适？',options:['提炼主要信息，不加入原文没有的细节。','把所有句子原样复制。','写自己的个人经历。'],answer:0,why:'总结保留核心信息，省去细节；长度要求以题目为准。'},
+];
+// Selected-question coaching. These are original examples, not official marking schemes.
+const EXAM_ANSWER_GUIDES = {
+ 'focus-ICT-1':{keywords:['range check（范围检查）','validation（校验）'],reasoning:'先识别拒绝输入的依据：250 超出允许年龄范围，不是判断是否输入数字，也不是验证真实年龄。',model:'A range check rejects values outside the permitted age limits. It does not prove that a value within the range is factually correct.',pitfall:'不要把 validation（合理性检查）写成 verification（检查录入与源数据一致）。'},
+ 'focus-ICT-5':{keywords:['IF function（条件函数）','greater than or equal to（大于或等于）'],reasoning:'先计算 B2>=50 是否为真；等于 50 满足条件，所以选择第一个返回值。',model:'Since 50 >= 50 is true, the IF function returns "Pass".',pitfall:'>= 包含等号；不要把它看成 >。'},
+ 'focus-ICT-9':{keywords:['mail merge（邮件合并）','main document（主文档）','data source（数据源）','merge field（合并字段）'],reasoning:'信件版式相同、姓名等字段不同，对应主文档与多条记录合并。',model:'Mail merge combines a main document with records from a data source, inserting the recipient’s details into merge fields.',pitfall:'解释过程时不要只写“发送多封邮件”；邮件合并也可生成信件等文档。'},
+ 'focus-ICT-13':{keywords:['relative path（相对路径）','same folder（同一文件夹）'],reasoning:'题目指定同一文件夹，因此直接使用文件名即可；个人电脑绝对路径对其他访问者无效。',model:'Use about.html as the relative path because the target file is in the same folder.',pitfall:'不要写本机 C:\\Users 路径；它不代表网站中的有效公共地址。'},
+ 'focus-ICT-17':{keywords:['phishing（钓鱼）','verify independently（独立核实）','known address（已知地址）'],reasoning:'陌生链接要求敏感信息是风险信号，应绕开该链接，通过既有官方渠道核实。',model:'Do not enter the password through the link. Verify the message independently using the official banking app or a known address.',pitfall:'不要把 HTTPS 或熟悉的 logo 当成信息可信的充分证明。'},
+ 'focus-计算机科学-1':{keywords:['binary（二进制）','denary（十进制）','place value（位值）'],reasoning:'从右到左列出 1、2、4、8、16、32，累加数字为 1 的位置。',model:'101101₂ = 32 + 8 + 4 + 1 = 45₁₀.',pitfall:'没有标单位时可用下标或文字说明进制；不要把 101101 当十进制数直接使用。'},
+ 'focus-计算机科学-5':{keywords:['lossless compression（无损压缩）','exact reconstruction（精确恢复）'],reasoning:'判断的核心不是压缩率，而是解压后是否能够恢复原始数据。',model:'Lossless compression allows the original data to be reconstructed exactly after decompression.',pitfall:'不要声称“无损一定比有损压得更小”；关键区别是是否丢失原始信息。'},
+ 'focus-计算机科学-9':{keywords:['HTTPS','TLS','data in transit（传输中的数据）','encryption（加密）'],reasoning:'回答 HTTP 与 HTTPS 的传输保护区别；明确被保护的是连接中的数据。',model:'HTTPS uses TLS to protect data in transit through encryption and related connection security measures.',pitfall:'不要把加密连接等同于网站内容真实，或说它能阻止所有恶意软件。'},
+ 'focus-计算机科学-13':{keywords:['binary search（二分查找）','sorted list（有序列表）','search key（搜索键）'],reasoning:'比较中间值后排除一半范围，只有按搜索键排序才能保证没有排除目标。',model:'The list must be sorted by the search key so that a comparison with the middle item identifies which half could contain the target.',pitfall:'“列表很小”不是前提；需要说明 sorted，而不只是“有数据”。'},
+ 'focus-计算机科学-17':{keywords:['AND（与）','OR（或）','NOT（非）'],reasoning:'先计算括号：1 AND 0=0；再算 NOT 0=1；最后 0 OR 1=1。',model:'(1 AND 0) OR NOT 0 = 0 OR 1 = 1.',pitfall:'逻辑输入输出只有 0 与 1；OR 不是普通整数加法。'},
+ 'focus-英语-1':{keywords:['earlier than usual（比平时更早）','usual（通常的）'],reasoning:'今天 4 点关门比平时早一小时，倒推平时要在 4 点之后一小时。',model:'The usual closing time is 5 pm.',pitfall:'注意比较方向；不是再减一小时得到 3 pm。'},
+ 'focus-英语-5':{keywords:['initially（起初）','but now（但现在）','attitude（态度）'],reasoning:'用 initially 与 now 比较过去和现在的感受及行为；变化的是对骑车的态度。',model:'Her attitude to cycling changed: she used to dislike it, but she now cycles every day.',pitfall:'不要推断没有写出的原因，例如“她买了一辆新车”。'},
+ 'focus-英语-9':{keywords:['reduce congestion（减少拥堵）','help + verb（help 后接动词）'],reasoning:'语义是公共交通帮助减少拥堵；reduce 与 congestion 搭配自然。',model:'Public transport can help reduce traffic congestion.',pitfall:'选择动词时同时检查含义和搭配；不能只看中文词义相近。'},
+ 'focus-英语-13':{keywords:['passive voice（被动语态）','past simple（一般过去时）','were sold（被售出）'],reasoning:'tickets 为复数、yesterday 指过去，票是被售出，使用 were + sold。',model:'The tickets were sold online yesterday.',pitfall:'sell 的过去分词是 sold；不要写 were sell，也不要遗漏被动的 be 动词。'},
+ 'focus-英语-17':{keywords:['findings（调查结果）','recommendations（建议）','report（报告）'],reasoning:'报告应清楚呈现发现，并给出符合场景、可执行的建议；完整任务还要核对受众与要求。',model:'The report should present clear findings and practical recommendations.',pitfall:'完整写作题还需覆盖所列要点；不能只背一个格式或凭空添加调查事实。'},
+ 'focus-数学-1':{keywords:['simplify（化简）','surd（根式）','square factor（平方因子）'],reasoning:'找出 72 中最大的平方因子 36，拆分平方根并把 √36 化成 6。',model:'√72 = √(36 × 2) = 6√2.',pitfall:'√(a+b) 通常不等于 √a+√b；这里拆分的是乘法。'},
+ 'focus-数学-5':{keywords:['percentage multiplier（百分比倍率）','overall change（总体变化）'],reasoning:'上涨与下降作用于不同基数；把 1.2 与 0.8 相乘，得到原值的 0.96。',model:'1.20 × 0.80 = 0.96, so the overall change is a 4% decrease.',pitfall:'不能把 +20% 与 −20% 直接相消。'},
+ 'focus-数学-9':{keywords:['differentiate（求导）','power rule（幂法则）','constant（常数）'],reasoning:'对 a xⁿ 使用 a n xⁿ⁻¹：3x³ 得 9x²，−2x² 得 −4x，常数 5 得 0。',model:'dy/dx = 3 × 3x² − 2 × 2x + 0 = 9x² − 4x.',pitfall:'系数与指数都要处理；不要把常数 5 留在导数里。'},
+ 'focus-数学-13':{keywords:['included angle（夹角）','triangle area（三角形面积）','degrees（角度制）'],reasoning:'已知两边及夹角，使用 A=½ab sin C；sin30°=½，所以面积为 20。',model:'A = ½ × 8 × 10 × sin 30° = 20 square units.',pitfall:'给定夹角应在这两条边之间；题目未指定 cm，不要自行写 cm²。'},
+ 'focus-数学-17':{keywords:['independent events（独立事件）','intersection（交集）','and（同时发生）'],reasoning:'独立事件同时发生的概率用乘法：0.4×0.3；不是求“至少一个”的并集。',model:'P(A ∩ B) = P(A) × P(B) = 0.4 × 0.3 = 0.12.',pitfall:'独立不等于互斥；不要直接把概率相加。'},
+};
