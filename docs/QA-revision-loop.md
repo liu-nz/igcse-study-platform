@@ -20,3 +20,11 @@ Baseline: main 892caa1, following merged PRs #1 (stability/security) and #3 (rev
 - Prior mistakes already deleted by the old behavior cannot be recovered by this change.
 
 No breaking storage schema: old mistake records remain active by default; new fields are additive. Keep draft until remaining browser review is complete.
+
+## Topic filtering follow-up
+
+- Fixed wrong-mode scope replacement: selected subject, topic, difficulty and hot-only filters now intersect with active mistakes. Weak-mode subject/topic matching remains scoped.
+- All start modes use the same `getQuizScopeQuestions` helper. Explicit home/mistake-book actions reset stale filters before selecting their intended range.
+- Subject changes reset the topic list; topic options show bilingual names where available and counts. Live summary displays available questions. Settings precede mode buttons.
+- Chrome actual select/click checks covered 358 subject/topic/mode combinations (sequential and random), plus scoped wrong and weak sessions. Four-width layout checks and persistence flow passed without page errors or document overflow.
+- Node regression checks cover subject/topic intersections, explicit topic overrides, focus-only scope, difficulty and hot-only intersections.

@@ -319,6 +319,49 @@
                         <div class="focus-banner"><strong>四科专项 · 80 道新增原创练习 Four-Subject Focus · 80 original practice items</strong><p>ICT 0417 · CS 0478 · ESL 0510 · Math 0580 Extended。附解析，用于巩固知识；不等同于完整真题或实操考试。<span class="bi-en">With explanations, for consolidating knowledge — not a substitute for complete past papers or practical exams.</span></p></div>
                         <h3>选择练习模式<span class="bi-en">Choose a practice mode</span></h3>
                         <p class="page-desc">从内置题库中选择题目开始练习<span class="bi-en">Pick questions from the built-in question bank to start practising.</span></p>
+                        <div class="quiz-config">
+                            <h4>练习配置<span class="bi-en">Practice settings</span></h4>
+                            <div class="config-row">
+                                <div class="config-item">
+                                    <label for="quiz-subject">选择科目 <span class="en-inline">Subject</span></label>
+                                    <select id="quiz-subject" onchange="updateQuizTopics(false)">
+                                        <option value="focus">四科专项（推荐）Four-subject focus</option>
+                                        <option value="all">全部科目 All subjects</option>
+                                    </select>
+                                </div>
+                                <div class="config-item">
+                                    <label for="quiz-topic">选择专题 <span class="en-inline">Topic</span></label>
+                                    <select id="quiz-topic" onchange="updateQuizScopeSummary()"><option value="all">全部专题 All topics</option></select>
+                                </div>
+                                <div class="config-item">
+                                    <label for="quiz-count">题目数量 <span class="en-inline">Number of questions</span></label>
+                                    <select id="quiz-count">
+                                        <option value="5">5 题 5 questions</option>
+                                        <option value="10" selected>10 题 10 questions</option>
+                                        <option value="20">20 题 20 questions</option>
+                                        <option value="0">全部题目 All questions</option>
+                                    </select>
+                                </div>
+                                <div class="config-item">
+                                    <label for="quiz-difficulty">难度 <span class="en-inline">Difficulty</span></label>
+                                    <select id="quiz-difficulty" onchange="updateQuizScopeSummary()">
+                                        <option value="all">全部难度 All levels</option>
+                                        <option value="easy">简单 Easy</option>
+                                        <option value="medium">中等 Medium</option>
+                                        <option value="hard">困难 Hard</option>
+                                    </select>
+                                </div>
+                                <div class="config-item">
+                                    <label>题目范围 <span class="en-inline">Range</span></label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="quiz-hot-only" onchange="updateQuizScopeSummary()">
+                                        <span>🔥 只练常考题 Hot Topics Only</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <p id="quiz-scope-summary" class="page-desc" role="status" aria-live="polite"></p>
+                            <p class="page-desc">先选择科目与专题，再点击下方练习模式。错题与弱项模式也遵守这些筛选。<span class="bi-en">Choose subject and topic first, then start a mode below. Mistakes and weak-topic modes use the same filters.</span></p>
+                        </div>
                         <div class="quiz-modes">
                             <div class="mode-card" onclick="startQuiz('sequential')">
                                 <div class="mode-icon">📖</div>
@@ -341,44 +384,7 @@
                                 <p>针对正确率低的知识点集中练习<span class="bi-en">Focus on your lowest-accuracy topics.</span></p>
                             </div>
                         </div>
-                        <div class="quiz-config">
-                            <div class="form-group"><label for="quiz-topic">专题 Topic</label><select id="quiz-topic"><option value="all">全部专题 All topics</option></select></div>
-                            <h4>练习配置<span class="bi-en">Practice settings</span></h4>
-                            <div class="config-row">
-                                <div class="config-item">
-                                    <label>选择科目 <span class="en-inline">Subject</span></label>
-                                    <select id="quiz-subject" onchange="updateQuizTopics()">
-                                        <option value="focus">四科专项（推荐）Four-subject focus</option>
-                                        <option value="all">全部科目 All subjects</option>
-                                    </select>
-                                </div>
-                                <div class="config-item">
-                                    <label>题目数量 <span class="en-inline">Number of questions</span></label>
-                                    <select id="quiz-count">
-                                        <option value="5">5 题 5 questions</option>
-                                        <option value="10" selected>10 题 10 questions</option>
-                                        <option value="20">20 题 20 questions</option>
-                                        <option value="0">全部题目 All questions</option>
-                                    </select>
-                                </div>
-                                <div class="config-item">
-                                    <label>难度 <span class="en-inline">Difficulty</span></label>
-                                    <select id="quiz-difficulty">
-                                        <option value="all">全部难度 All levels</option>
-                                        <option value="easy">简单 Easy</option>
-                                        <option value="medium">中等 Medium</option>
-                                        <option value="hard">困难 Hard</option>
-                                    </select>
-                                </div>
-                                <div class="config-item">
-                                    <label>题目范围 <span class="en-inline">Range</span></label>
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="quiz-hot-only">
-                                        <span>🔥 只练常考题 Hot Topics Only</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
+
                     </div>
 
                     <div id="quiz-playing" class="quiz-playing hidden">
@@ -988,7 +994,7 @@
     <script src="js/data.js?v=20261001-optbi1"></script>
     <script src="js/glossary.js?v=20261001-optbi1"></script>
     <script src="js/data-options-i18n.js?v=20261001-optbi1"></script>
-    <script src="js/app.js?v=20261001-revision2"></script>
+    <script src="js/app.js?v=20261001-topics3"></script>
     <script src="js/typing.js?v=20261001-optbi1"></script>
 </body>
 </html>

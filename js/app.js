@@ -585,23 +585,13 @@ function resetQuizSetup() {
 }
 
 function startQuiz(mode, topicOverride = null) {
-    let questions = [...QUESTION_BANK];
-    const subject = document.getElementById('quiz-subject').value;
-    const difficulty = document.getElementById('quiz-difficulty').value;
+    let questions = getQuizScopeQuestions(topicOverride);
     const count = parseInt(document.getElementById('quiz-count').value);
-
-    if (subject === 'focus') questions = questions.filter(q => q.focus);
-    else if (subject !== 'all') questions = questions.filter(q => q.subject === subject);
-    const topic = topicOverride || document.getElementById('quiz-topic').value;
-    if (topic !== 'all') questions = questions.filter(q => q.topic === topic);
-    if (difficulty !== 'all') questions = questions.filter(q => q.difficulty === difficulty);
-    const hotOnly = document.getElementById('quiz-hot-only')?.checked;
-    if (hotOnly) questions = questions.filter(q => q.isHot);
 
     if (mode === 'wrong') {
         const wrongIds = getActiveMistakes().map(w => w.id);
-        questions = QUESTION_BANK.filter(q => wrongIds.includes(q.id));
-        if (questions.length === 0) { showToast('暂无错题，先去做一些题吧'); return; }
+        questions = questions.filter(q => wrongIds.includes(q.id));
+        if (questions.length === 0) { showToast('当前科目 / 专题范围没有待巩固错题，请调整筛选 No active mistakes in this range'); return; }
     } else if (mode === 'weak') {
         const weakTopics = getWeakTopicStats();
         if (weakTopics.length === 0) { showToast('暂无薄弱点数据'); return; }
@@ -1136,10 +1126,18 @@ function setWrongReasonByIndex(index, reason) {
     if (w) { w.reason = reason; saveData(appData); renderWrongBook(); }
 }
 
+function resetQuizScope() {
+    document.getElementById('quiz-subject').value = 'all';
+    document.getElementById('quiz-difficulty').value = 'all';
+    document.getElementById('quiz-hot-only').checked = false;
+    updateQuizTopics(false);
+}
+
 function startWrongQuiz() {
     if (getActiveMistakes().length === 0) { showToast('暂无错题'); return; }
     navigateTo('quiz');
-    setTimeout(() => startQuiz('wrong'), 100);
+    resetQuizScope();
+    startQuiz('wrong');
 }
 
 // ========== AI 问答 ==========
@@ -1334,6 +1332,7 @@ function startWeakTopicPractice() {
 
     const target = weakStats[0];
     navigateTo('quiz');
+    resetQuizScope();
     const subjectSelect = document.getElementById('quiz-subject');
     const topicSelect = document.getElementById('quiz-topic');
     if (subjectSelect && [...subjectSelect.options].some(option => option.value === target.subject)) {
@@ -1353,8 +1352,7 @@ function startPriorityRevision() {
         return;
     }
     if (getActiveMistakes().length > 0) {
-        navigateTo('quiz');
-        startQuiz('wrong');
+        startWrongQuiz();
         return;
     }
     if (getWeakTopicStats().length > 0) {
@@ -1368,7 +1366,7 @@ function startPriorityRevision() {
     const countSelect = document.getElementById('quiz-count');
     const hotOnly = document.getElementById('quiz-hot-only');
     if (subjectSelect) subjectSelect.value = 'all';
-    updateQuizTopics();
+    updateQuizTopics(false);
     if (difficultySelect) difficultySelect.value = 'all';
     if (countSelect) countSelect.value = '10';
     if (hotOnly) hotOnly.checked = false;
@@ -2113,12 +2111,43 @@ window.addEventListener('resize', () => {
 
 
 function orderedSubjects() { return [...FOCUS_SUBJECTS, ...new Set(QUESTION_BANK.map(q=>q.subject))].filter((v,i,a)=>a.indexOf(v)===i); }
-function updateQuizTopics() {
- const select = document.getElementById('quiz-topic');
- const subject = document.getElementById('quiz-subject').value;
- const previous = select.value;
-    const topics = [...new Set(QUESTION_BANK.filter(q=>subject === 'all' || (subject === 'focus' ? q.focus : q.subject === subject)).map(q=>q.topic))];
- const topicEn = t => (typeof FOCUS_TOPIC_EN !== 'undefined' && FOCUS_TOPIC_EN[t]) ? ' · ' + FOCUS_TOPIC_EN[t] : '';
- select.replaceChildren(new Option('全部专题 All topics','all'), ...topics.map(t=>new Option(t + topicEn(t), t)));
- if (topics.includes(previous)) select.value=previous;
+function getQuizScopeQuestions(topicOverride = null) {
+    const subject = document.getElementById('quiz-subject').value;
+    const topic = topicOverride ?? document.getElementById('quiz-topic').value;
+    const difficulty = document.getElementById('quiz-difficulty').value;
+    const hotOnly = document.getElementById('quiz-hot-only').checked;
+    return QUESTION_BANK.filter(q =>
+        (subject === 'all' || (subject === 'focus' ? q.focus : q.subject === subject)) &&
+        (topic === 'all' || q.topic === topic) &&
+        (difficulty === 'all' || q.difficulty === difficulty) &&
+        (!hotOnly || q.isHot)
+    );
+}
+
+function updateQuizScopeSummary() {
+    const summary = document.getElementById('quiz-scope-summary');
+    if (!summary) return;
+    const subject = document.getElementById('quiz-subject').selectedOptions[0]?.textContent || '';
+    const topic = document.getElementById('quiz-topic').selectedOptions[0]?.textContent || '';
+    const available = getQuizScopeQuestions().length;
+    summary.textContent = `${subject} · ${topic} · ${available} 道可选题 Questions available`;
+}
+
+function updateQuizTopics(preserveSelection = true) {
+    const select = document.getElementById('quiz-topic');
+    const subject = document.getElementById('quiz-subject').value;
+    const previous = preserveSelection ? select.value : 'all';
+    const groups = new Map();
+    QUESTION_BANK.filter(q => subject === 'all' || (subject === 'focus' ? q.focus : q.subject === subject)).forEach(q => {
+        const group = groups.get(q.topic) || { count: 0, english: q.topicEn || '' };
+        group.count++;
+        if (!group.english && q.topicEn) group.english = q.topicEn;
+        groups.set(q.topic, group);
+    });
+    select.replaceChildren(new Option('全部专题 All topics', 'all'), ...[...groups].map(([topic, group]) => {
+        const english = group.english || (typeof FOCUS_TOPIC_EN !== 'undefined' ? FOCUS_TOPIC_EN[topic] : '') || '';
+        return new Option(`${topic}${english ? ' · ' + english : ''} (${group.count} 题)`, topic);
+    }));
+    if (groups.has(previous)) select.value = previous;
+    updateQuizScopeSummary();
 }

@@ -1040,6 +1040,7 @@ body {
 }
 
 .quiz-config {
+    margin-bottom: 20px;
     background: var(--card-bg);
     border-radius: var(--radius);
     padding: 20px;
