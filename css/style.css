@@ -683,6 +683,111 @@ body {
     margin-bottom: 16px;
 }
 
+.revision-hub {
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+}
+
+.revision-hub-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.revision-hub-header .card-title {
+    margin-bottom: 6px;
+}
+
+.revision-priority-text {
+    color: var(--text-light);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.revision-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.revision-focus-item {
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+        "icon value"
+        "icon label";
+    column-gap: 10px;
+    align-items: center;
+    text-align: left;
+    transition: var(--transition);
+}
+
+.revision-focus-item:hover {
+    border-color: var(--primary-light);
+    transform: translateY(-1px);
+}
+
+.revision-focus-icon {
+    grid-area: icon;
+    font-size: 24px;
+}
+
+.revision-focus-item strong {
+    grid-area: value;
+    font-size: 22px;
+    line-height: 1.1;
+}
+
+.revision-focus-item > span:last-child {
+    grid-area: label;
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+.revision-weak-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+
+.revision-weak-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+.revision-weak-topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.revision-weak-chip {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: 12px;
+}
+
+.revision-weak-empty {
+    font-size: 12px;
+    color: var(--text-light);
+}
+
 .task-list, .recent-list {
     min-height: 120px;
 }
@@ -2349,6 +2454,19 @@ body {
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 10px;
+    }
+
+    .revision-hub-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .revision-hub-header .btn {
+        width: 100%;
+    }
+
+    .revision-hub-grid {
+        grid-template-columns: 1fr;
     }
 
     .stat-card {
