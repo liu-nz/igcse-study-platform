@@ -1,0 +1,24 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const context = vm.createContext({ console, localStorage: { getItem: () => null }, FLASHCARD_DECKS: [], MATERIALS_DATA: [], MEMBERS_DATA: [], document: { addEventListener() {}, querySelectorAll: () => [] }, window: { addEventListener() {} } });
+vm.runInContext(fs.readFileSync('js/app.js', 'utf8'), context);
+vm.runInContext(`
+const q = { id: 'q1', subject: 'Math', topic: 'Shared', options: ['a','b'], answer: 0 };
+recordMistakeAttempt(q, 1, '2026-10-01');
+recordMistakeAttempt(q, 0, '2026-10-02');
+if (getActiveMistakes().length !== 1 || appData.wrongQuestions[0].correctStreak !== 1) throw Error('correct answer must preserve mistake');
+appData.wrongQuestions[0].resolved = true;
+if (getActiveMistakes().length) throw Error('resolved excluded');
+recordMistakeAttempt(q, 1, '2026-10-03');
+if (!getActiveMistakes().length || appData.wrongQuestions[0].correctStreak) throw Error('relapse reopens');
+appData.quizRecords = [{ questions: Array(5).fill(q), answers: [1,1,1,null,undefined] }];
+if (getWeakTopicStats().length) throw Error('unanswered excluded / minimum sample');
+appData.quizRecords.push({questions: [q,q,{...q,subject:'ICT'}], answers:[1,0,1]});
+const weak = getWeakTopicStats();
+if (weak.length !== 1 || weak[0].subject !== 'Math' || weak[0].total !== 5 || weak[0].accuracy !== 20) throw Error('subject/topic aggregation');
+`, context);
+const html = fs.readFileSync('index.html', 'utf8');
+const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(x => x[1]);
+assert.equal(new Set(ids).size, ids.length, 'duplicate HTML IDs');
+console.log('Revision persistence, relapse, old-data compatibility, weak-topic samples and duplicate IDs: passed');
