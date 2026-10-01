@@ -264,7 +264,7 @@ function navigateTo(page) {
         typing: '打字默写 Recall & Type', dashboard: '首页仪表盘 Dashboard', materials: '资料中心 Materials', quiz: '题库刷题 Practice',
         pastpapers: '历年真题 Past Papers', review: '智能复习 Smart Review', flashcards: '闪卡记忆 Flashcards',
         mustknow: '必考点 Must-Know', keyunits: '重点复习单元 Key Units',
-        wrongbook: '错题本 Mistake Book', aichat: 'AI 问答 AI Tutor', analytics: '学习分析 Analytics',
+        wrongbook: '错题本 Mistake Book', aichat: '学习助手 Study Assistant', analytics: '学习分析 Analytics',
         members: '成员管理 Members', settings: '设置 Settings'
     };
     document.getElementById('page-title').textContent = titles[page] || '';
@@ -344,7 +344,7 @@ function renderDashboard() {
 
     // 今日任务
     const dueCount = getDueReviewCount();
-    const wrongCount = appData.wrongQuestions.length;
+    const wrongCount = getActiveMistakes().length;
     renderRevisionHub(dueCount, wrongCount);
     const tasks = [];
     if (dueCount > 0) tasks.push({ text: `智能复习：${dueCount} 道题目待复习<span class="bi-en">Smart review: ${dueCount} questions due</span>`, done: false, action: "navigateTo('review')" });
@@ -365,7 +365,7 @@ function renderDashboard() {
     }
 
     // 最近错题
-    const recentWrong = appData.wrongQuestions.slice(-3).reverse();
+    const recentWrong = getActiveMistakes().slice(-3).reverse();
     const wrongEl = document.getElementById('recent-wrong');
     if (recentWrong.length === 0) {
         wrongEl.innerHTML = '<div class="empty-state">暂无错题记录<span class="bi-en">No mistakes recorded yet</span></div>';
@@ -585,27 +585,17 @@ function resetQuizSetup() {
 }
 
 function startQuiz(mode, topicOverride = null) {
-    let questions = [...QUESTION_BANK];
-    const subject = document.getElementById('quiz-subject').value;
-    const difficulty = document.getElementById('quiz-difficulty').value;
+    let questions = getQuizScopeQuestions(topicOverride);
     const count = parseInt(document.getElementById('quiz-count').value);
 
-    if (subject === 'focus') questions = questions.filter(q => q.focus);
-    else if (subject !== 'all') questions = questions.filter(q => q.subject === subject);
-    const topic = topicOverride || document.getElementById('quiz-topic').value;
-    if (topic !== 'all') questions = questions.filter(q => q.topic === topic);
-    if (difficulty !== 'all') questions = questions.filter(q => q.difficulty === difficulty);
-    const hotOnly = document.getElementById('quiz-hot-only')?.checked;
-    if (hotOnly) questions = questions.filter(q => q.isHot);
-
     if (mode === 'wrong') {
-        const wrongIds = appData.wrongQuestions.map(w => w.id);
-        questions = QUESTION_BANK.filter(q => wrongIds.includes(q.id));
-        if (questions.length === 0) { showToast('暂无错题，先去做一些题吧'); return; }
+        const wrongIds = getActiveMistakes().map(w => w.id);
+        questions = questions.filter(q => wrongIds.includes(q.id));
+        if (questions.length === 0) { showToast('当前科目 / 专题范围没有待巩固错题，请调整筛选 No active mistakes in this range'); return; }
     } else if (mode === 'weak') {
-        const weakTopics = getWeakTopics();
+        const weakTopics = getWeakTopicStats();
         if (weakTopics.length === 0) { showToast('暂无薄弱点数据'); return; }
-        questions = questions.filter(q => weakTopics.includes(q.topic));
+        questions = questions.filter(q => weakTopics.some(stat => stat.subject === q.subject && stat.topic === q.topic));
     } else if (mode === 'random') {
         questions = shuffleArray(questions);
     }
@@ -703,11 +693,11 @@ function renderQuestion() {
         document.getElementById('result-header').textContent = isCorrect ? '✅ 回答正确！ Correct!' : '❌ 回答错误 Incorrect';
         document.getElementById('result-answer').innerHTML = `正确答案 Correct answer：<b>${String.fromCharCode(65 + q.answer)}. ${optionInline(q.options[q.answer], q.subject)}</b>`;
         const expEl = document.getElementById('result-explanation');
-        expEl.textContent = '解析 Explanation：' + q.explanation;
+        expEl.textContent = '中文思路 Chinese reasoning：' + q.explanation;
         if (q.explanationEn && q.explanationEn !== q.explanation) {
             const enExp = document.createElement('div');
             enExp.className = 'en-block';
-            enExp.textContent = q.explanationEn;
+            enExp.textContent = '英文解析 / Exam wording：' + q.explanationEn;
             expEl.appendChild(enExp);
         }
     } else {
@@ -754,14 +744,8 @@ function submitAnswer() {
         appData.lastStudyDate = today;
     }
 
-    // 错题管理
-    if (!isCorrect) {
-        if (!appData.wrongQuestions.find(w => w.id === q.id)) {
-            appData.wrongQuestions.push({ ...q, wrongAnswer: quizState.selectedOption, reason: '', date: today });
-        }
-    } else {
-        appData.wrongQuestions = appData.wrongQuestions.filter(w => w.id !== q.id);
-    }
+    // Keep mistakes until the student explicitly resolves them; a relapse reopens them.
+    recordMistakeAttempt(q, quizState.selectedOption, today);
 
     // SRS 更新
     updateSRS(q.id, isCorrect);
@@ -869,7 +853,7 @@ function updateSRS(questionId, correct) {
 
 function getDueReviewCount() {
     const today = getTodayStr();
-    return Object.entries(appData.srsData).filter(([id, srs]) => srs.nextReview <= today).length;
+    return getDueReviewItems().length;
 }
 
 function getDueReviewItems() {
@@ -928,8 +912,8 @@ function renderReview() {
 
     // 记忆状态分布
     const bars = [
-        { label: '未掌握 Not learned', count: Object.values(appData.srsData).filter(s => s.interval <= 1).length, color: '#e74c3c' },
-        { label: '学习中 Learning', count: Object.values(appData.srsData).filter(s => s.interval > 1 && s.interval < 7).length, color: '#f39c12' },
+        { label: '新题 New', count: QUESTION_BANK.filter(q => !appData.srsData[q.id]).length, color: '#95a5a6' },
+        { label: '学习中 Learning', count: Object.values(appData.srsData).filter(s => s.interval < 7).length, color: '#e74c3c' },
         { label: '熟悉 Familiar', count: Object.values(appData.srsData).filter(s => s.interval >= 7 && s.interval < 21).length, color: '#3498db' },
         { label: '已掌握 Mastered', count: mastered, color: '#27ae60' },
     ];
@@ -1057,13 +1041,51 @@ function saveFlashcard() {
     showToast('闪卡已添加！');
 }
 
+function getActiveMistakes() {
+    return appData.wrongQuestions.filter(w => !w.resolved);
+}
+
+function recordMistakeAttempt(question, answer, date) {
+    const correct = answer === question.answer;
+    let mistake = appData.wrongQuestions.find(w => w.id === question.id);
+    if (!mistake && !correct) {
+        mistake = { ...question, reason: '', date, correctStreak: 0 };
+        appData.wrongQuestions.push(mistake);
+    }
+    if (!mistake) return;
+    mistake.lastAttempt = date;
+    mistake.correctStreak = correct ? (mistake.correctStreak || 0) + 1 : 0;
+    if (!correct) {
+        mistake.wrongAnswer = answer;
+        mistake.resolved = false;
+        mistake.resolvedAt = null;
+    }
+}
+
+function toggleMistakeResolved(index) {
+    const mistake = appData.wrongQuestions[index];
+    if (!mistake) return;
+    mistake.resolved = !mistake.resolved;
+    mistake.resolvedAt = mistake.resolved ? getTodayStr() : null;
+    saveData(appData);
+    renderWrongBook();
+}
+
+const MISTAKE_REASONS = {
+    concept: '概念不清 Concept', careless: '粗心 Careless',
+    calculation: '计算失误 Calculation', misread: '审题错误 Misread',
+    vocabulary: '术语不熟 Vocabulary', other: '其他 Other',
+};
+
 // ========== 错题本 ==========
 function renderWrongBook() {
     const subject = document.getElementById('wrong-filter')?.value || 'all';
     let wrongs = appData.wrongQuestions;
+    const status = document.getElementById('wrong-status-filter')?.value || 'active';
+    if (status !== 'all') wrongs = wrongs.filter(w => status === 'resolved' ? w.resolved : !w.resolved);
     if (subject !== 'all') wrongs = wrongs.filter(w => w.subject === subject);
 
-    document.getElementById('wrong-total').textContent = appData.wrongQuestions.length;
+    document.getElementById('wrong-total').textContent = getActiveMistakes().length;
     document.getElementById('wrong-concept').textContent = appData.wrongQuestions.filter(w => w.reason === 'concept').length;
     document.getElementById('wrong-careless').textContent = appData.wrongQuestions.filter(w => w.reason === 'careless').length;
     document.getElementById('wrong-unknown').textContent = appData.wrongQuestions.filter(w => w.reason === 'unknown' || !w.reason).length;
@@ -1076,35 +1098,46 @@ function renderWrongBook() {
     list.innerHTML = wrongs.map((w, idx) => `
         <div class="wrong-item">
             <div class="wrong-header">
-                <span class="q-badge">${w.subject}</span>
-                <span class="q-badge">${w.topic}</span>
+                <span class="q-badge">${escapeHtml(w.subject)}</span>
+                <span class="q-badge">${escapeHtml(w.topic)}</span>
                 <span class="q-badge">${{easy:'简单 Easy',medium:'中等 Medium',hard:'困难 Hard'}[w.difficulty]}</span>
             </div>
-            <div class="wrong-question">${w.question}</div>
+            <div class="wrong-question">${escapeHtml(w.question)}</div>
             <div class="wrong-answer-row">
                 <span class="wa-wrong">你的答案 Your answer：${w.wrongAnswer !== null && w.wrongAnswer !== undefined ? String.fromCharCode(65 + w.wrongAnswer) + '. ' + optionInline(w.options[w.wrongAnswer], w.subject) : '未作答 No answer'}</span>
                 <span class="wa-correct">正确答案 Correct：${String.fromCharCode(65 + w.answer)}. ${optionInline(w.options[w.answer], w.subject)}</span>
             </div>
-            <div class="result-explanation" style="margin-top:8px">解析 Explanation：${w.explanation}</div>
+            <div class="result-explanation" style="margin-top:8px">解析 Explanation：${escapeHtml(w.explanation)}</div>
             <div class="wrong-reason-select">
                 <span style="font-size:12px;color:var(--text-light)">错误原因 Reason：</span>
-                <button class="reason-btn ${w.reason === 'concept' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'concept')">概念不清 Concept gap</button>
-                <button class="reason-btn ${w.reason === 'careless' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'careless')">粗心失误 Careless</button>
-                <button class="reason-btn ${w.reason === 'unknown' ? 'active' : ''}" onclick="setWrongReason('${w.id}', 'unknown')">完全不会 Not known</button>
+                ${Object.entries(MISTAKE_REASONS).map(([reason, label]) => `<button class="reason-btn ${w.reason === reason ? 'active' : ''}" onclick="setWrongReasonByIndex(${appData.wrongQuestions.indexOf(w)}, '${reason}')">${label}</button>`).join('')}
+            </div>
+            <div class="wrong-reason-select">
+                <span>${w.resolved ? '已解决 Resolved' : '待巩固 Learning'} · 连续答对 Correct streak: ${Number(w.correctStreak) || 0}</span>
+                <button class="btn btn-outline btn-sm" onclick="toggleMistakeResolved(${appData.wrongQuestions.indexOf(w)})">${w.resolved ? '重新加入复习 Reopen' : '标记已解决 Resolve'}</button>
             </div>
         </div>
     `).join('');
 }
 
-function setWrongReason(id, reason) {
-    const w = appData.wrongQuestions.find(x => x.id === id);
+function setWrongReasonByIndex(index, reason) {
+    if (!Object.prototype.hasOwnProperty.call(MISTAKE_REASONS, reason)) return;
+    const w = appData.wrongQuestions[index];
     if (w) { w.reason = reason; saveData(appData); renderWrongBook(); }
 }
 
+function resetQuizScope() {
+    document.getElementById('quiz-subject').value = 'all';
+    document.getElementById('quiz-difficulty').value = 'all';
+    document.getElementById('quiz-hot-only').checked = false;
+    updateQuizTopics(false);
+}
+
 function startWrongQuiz() {
-    if (appData.wrongQuestions.length === 0) { showToast('暂无错题'); return; }
+    if (getActiveMistakes().length === 0) { showToast('暂无错题'); return; }
     navigateTo('quiz');
-    setTimeout(() => startQuiz('wrong'), 100);
+    resetQuizScope();
+    startQuiz('wrong');
 }
 
 // ========== AI 问答 ==========
@@ -1196,7 +1229,7 @@ function generateAIResponse(question) {
 
     // 基于题目数据的智能回答
     const matchedQuestion = QUESTION_BANK.find(qb =>
-        question.includes(qb.topic) || qb.question.includes(question.substring(0, 4))
+        question.includes(qb.topic) || (question.trim().length >= 4 && qb.question.includes(question.trim()))
     );
 
     if (matchedQuestion) {
@@ -1211,13 +1244,13 @@ function generateAIResponse(question) {
     if (subjectMatch) {
         return {
             answer: `这是一个关于${subjectMatch.subject}的好问题！\n\n根据我的知识库，${subjectMatch.subject}科目包含以下主要章节：\n${[...new Set(QUESTION_BANK.filter(x => x.subject === subjectMatch.subject).map(x => x.topic))].join('、')}\n\n你可以具体问我某个章节的知识点，我会给出详细解答。`,
-            source: `${subjectMatch.subject} ${subjectMatch.subjectCode} Syllabus`
+            source: `${subjectMatch.subject} ${subjectMatch.subjectCode} 站内练习目录（非官方考纲）`
         };
     }
 
     return {
-        answer: `感谢你的提问！我是你的 IGCSE AI 助教，可以帮你解答各科知识点、讲解题目解题思路。\n\n目前我支持以下科目：数学、物理、化学、生物、经济。\n\n你可以问我类似这样的问题：\n• "解释一下牛顿第二定律"\n• "化学平衡的条件是什么"\n• "如何解二次方程"\n• "需求价格弹性是什么意思"\n\n试试点击下方的推荐问题吧！`,
-        source: 'IGCSE AI 助教知识库'
+        answer: `感谢你的提问！我是你的 IGCSE 本地学习助手，可以帮你解答各科知识点、讲解题目解题思路。\n\n目前我支持以下科目：数学、物理、化学、生物、经济。\n\n你可以问我类似这样的问题：\n• "解释一下牛顿第二定律"\n• "化学平衡的条件是什么"\n• "如何解二次方程"\n• "需求价格弹性是什么意思"\n\n试试点击下方的推荐问题吧！`,
+        source: 'IGCSE 本地学习助手知识库'
     };
 }
 
@@ -1227,7 +1260,7 @@ function getWeakTopicStats() {
     appData.quizRecords.forEach(record => {
         if (!record.questions || !record.answers) return;
         record.questions.forEach((q, i) => {
-            if (!q || !q.topic) return;
+            if (!q || !q.topic || !Array.isArray(q.options) || !Number.isInteger(record.answers[i]) || record.answers[i] < 0 || record.answers[i] >= q.options.length) return;
             const subject = q.subject || '其他';
             const key = subject + '::' + q.topic;
             if (!topicStats[key]) {
@@ -1243,7 +1276,7 @@ function getWeakTopicStats() {
             ...stat,
             accuracy: stat.total ? Math.round(stat.correct / stat.total * 100) : 0,
         }))
-        .filter(stat => stat.total >= 2 && stat.accuracy < 60)
+        .filter(stat => stat.total >= 5 && stat.accuracy < 60)
         .sort((a, b) => a.accuracy - b.accuracy || b.total - a.total);
 }
 
@@ -1251,7 +1284,7 @@ function getWeakTopics() {
     return [...new Set(getWeakTopicStats().map(stat => stat.topic))];
 }
 
-function renderRevisionHub(dueCount = getDueReviewCount(), wrongCount = appData.wrongQuestions.length) {
+function renderRevisionHub(dueCount = getDueReviewCount(), wrongCount = getActiveMistakes().length) {
     const dueEl = document.getElementById('revision-due-count');
     const wrongEl = document.getElementById('revision-wrong-count');
     const weakEl = document.getElementById('revision-weak-count');
@@ -1281,10 +1314,10 @@ function renderRevisionHub(dueCount = getDueReviewCount(), wrongCount = appData.
     }
 
     if (weakStats.length === 0) {
-        topicsEl.innerHTML = '<span class="revision-weak-empty">完成更多题目后会自动识别薄弱专题 <span class="en-inline">Weak topics appear after more practice.</span></span>';
+        topicsEl.innerHTML = '<span class="revision-weak-empty">每个科目专题至少完成 5 次作答、正确率低于 60% 才标记为薄弱 <span class="en-inline">Weak: at least 5 attempts per subject/topic and below 60% accuracy.</span></span>';
     } else {
         topicsEl.innerHTML = weakStats.slice(0, 3).map(stat =>
-            `<span class="revision-weak-chip">${escapeHtml(stat.subject)} · ${escapeHtml(stat.topic)} · ${stat.accuracy}%</span>`
+            `<span class="revision-weak-chip">${escapeHtml(stat.subject)} · ${escapeHtml(stat.topic)} · ${stat.total} 次 attempts · ${stat.accuracy}%</span>`
         ).join('');
     }
 }
@@ -1299,6 +1332,7 @@ function startWeakTopicPractice() {
 
     const target = weakStats[0];
     navigateTo('quiz');
+    resetQuizScope();
     const subjectSelect = document.getElementById('quiz-subject');
     const topicSelect = document.getElementById('quiz-topic');
     if (subjectSelect && [...subjectSelect.options].some(option => option.value === target.subject)) {
@@ -1317,9 +1351,8 @@ function startPriorityRevision() {
         startReviewSession();
         return;
     }
-    if (appData.wrongQuestions.length > 0) {
-        navigateTo('quiz');
-        startQuiz('wrong');
+    if (getActiveMistakes().length > 0) {
+        startWrongQuiz();
         return;
     }
     if (getWeakTopicStats().length > 0) {
@@ -1333,7 +1366,7 @@ function startPriorityRevision() {
     const countSelect = document.getElementById('quiz-count');
     const hotOnly = document.getElementById('quiz-hot-only');
     if (subjectSelect) subjectSelect.value = 'all';
-    updateQuizTopics();
+    updateQuizTopics(false);
     if (difficultySelect) difficultySelect.value = 'all';
     if (countSelect) countSelect.value = '10';
     if (hotOnly) hotOnly.checked = false;
@@ -1517,22 +1550,7 @@ function renderDifficultyChart() {
 }
 
 function renderWeakTopics() {
-    const topicStats = {};
-    appData.quizRecords.forEach(record => {
-        if (record.questions && record.answers) {
-            record.questions.forEach((q, i) => {
-                if (!topicStats[q.topic]) topicStats[q.topic] = { total: 0, correct: 0, subject: q.subject };
-                topicStats[q.topic].total++;
-                if (record.answers[i] === q.answer) topicStats[q.topic].correct++;
-            });
-        }
-    });
-
-    const weak = Object.entries(topicStats)
-        .filter(([_, s]) => s.total >= 1)
-        .map(([topic, s]) => ({ topic, ...s, rate: Math.round(s.correct / s.total * 100) }))
-        .sort((a, b) => a.rate - b.rate)
-        .slice(0, 6);
+    const weak = getWeakTopicStats().slice(0, 6);
 
     const el = document.getElementById('weak-topics');
     if (weak.length === 0 || appData.quizRecords.length === 0) {
@@ -1541,9 +1559,9 @@ function renderWeakTopics() {
     }
     el.innerHTML = weak.map(w => `
         <div class="weak-topic-item">
-            <span class="wt-name">${w.subject} · ${w.topic}</span>
-            <div class="wt-bar"><div class="wt-fill" style="width:${100 - w.rate}%"></div></div>
-            <span class="wt-rate">${w.rate}%</span>
+            <span class="wt-name">${escapeHtml(w.subject)} · ${escapeHtml(w.topic)} · ${w.total} 次 attempts</span>
+            <div class="wt-bar"><div class="wt-fill" style="width:${100 - w.accuracy}%"></div></div>
+            <span class="wt-rate">${w.accuracy}%</span>
         </div>
     `).join('');
 }
@@ -2093,12 +2111,43 @@ window.addEventListener('resize', () => {
 
 
 function orderedSubjects() { return [...FOCUS_SUBJECTS, ...new Set(QUESTION_BANK.map(q=>q.subject))].filter((v,i,a)=>a.indexOf(v)===i); }
-function updateQuizTopics() {
- const select = document.getElementById('quiz-topic');
- const subject = document.getElementById('quiz-subject').value;
- const previous = select.value;
-    const topics = [...new Set(QUESTION_BANK.filter(q=>subject === 'all' || (subject === 'focus' ? q.focus : q.subject === subject)).map(q=>q.topic))];
- const topicEn = t => (typeof FOCUS_TOPIC_EN !== 'undefined' && FOCUS_TOPIC_EN[t]) ? ' · ' + FOCUS_TOPIC_EN[t] : '';
- select.replaceChildren(new Option('全部专题 All topics','all'), ...topics.map(t=>new Option(t + topicEn(t), t)));
- if (topics.includes(previous)) select.value=previous;
+function getQuizScopeQuestions(topicOverride = null) {
+    const subject = document.getElementById('quiz-subject').value;
+    const topic = topicOverride ?? document.getElementById('quiz-topic').value;
+    const difficulty = document.getElementById('quiz-difficulty').value;
+    const hotOnly = document.getElementById('quiz-hot-only').checked;
+    return QUESTION_BANK.filter(q =>
+        (subject === 'all' || (subject === 'focus' ? q.focus : q.subject === subject)) &&
+        (topic === 'all' || q.topic === topic) &&
+        (difficulty === 'all' || q.difficulty === difficulty) &&
+        (!hotOnly || q.isHot)
+    );
+}
+
+function updateQuizScopeSummary() {
+    const summary = document.getElementById('quiz-scope-summary');
+    if (!summary) return;
+    const subject = document.getElementById('quiz-subject').selectedOptions[0]?.textContent || '';
+    const topic = document.getElementById('quiz-topic').selectedOptions[0]?.textContent || '';
+    const available = getQuizScopeQuestions().length;
+    summary.textContent = `${subject} · ${topic} · ${available} 道可选题 Questions available`;
+}
+
+function updateQuizTopics(preserveSelection = true) {
+    const select = document.getElementById('quiz-topic');
+    const subject = document.getElementById('quiz-subject').value;
+    const previous = preserveSelection ? select.value : 'all';
+    const groups = new Map();
+    QUESTION_BANK.filter(q => subject === 'all' || (subject === 'focus' ? q.focus : q.subject === subject)).forEach(q => {
+        const group = groups.get(q.topic) || { count: 0, english: q.topicEn || '' };
+        group.count++;
+        if (!group.english && q.topicEn) group.english = q.topicEn;
+        groups.set(q.topic, group);
+    });
+    select.replaceChildren(new Option('全部专题 All topics', 'all'), ...[...groups].map(([topic, group]) => {
+        const english = group.english || (typeof FOCUS_TOPIC_EN !== 'undefined' ? FOCUS_TOPIC_EN[topic] : '') || '';
+        return new Option(`${topic}${english ? ' · ' + english : ''} (${group.count} 题)`, topic);
+    }));
+    if (groups.has(previous)) select.value = previous;
+    updateQuizScopeSummary();
 }
