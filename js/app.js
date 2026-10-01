@@ -105,12 +105,15 @@ function formatTime(seconds) {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function getTodayStr() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
+function formatLocalDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+function getTodayStr() {
+    return formatLocalDate(new Date());
 }
 
 function parseLocalDate(dateStr) {
@@ -241,6 +244,11 @@ function navigateTo(page) {
     // 权限守卫：访客等无权身份不能进入受限页面
     if (!canAccessPage(page)) {
         showToast((PAGE_ACCESS_TIP[page] || '当前身份无权访问该页面。') + ' Members: owners/collaborators only');
+        return;
+    }
+    const quizPlaying = !document.getElementById('quiz-playing')?.classList.contains('hidden');
+    const activeQuiz = currentPage === 'quiz' && page !== 'quiz' && quizPlaying && quizState.questions.length > 0 && !quizState.finished;
+    if (activeQuiz && !confirm('当前练习还没完成，确定离开吗？已提交题目的错题与复习记录会保留，但本次完整练习不会加入历史。\nLeave this unfinished practice? Submitted answers keep their mistake/review updates, but the full session will not be saved to history.')) {
         return;
     }
     if (currentPage === 'quiz' && page !== 'quiz') { clearInterval(quizState.timerInterval); quizState.timerInterval = null; }
@@ -622,12 +630,14 @@ function startQuiz(mode, topicOverride = null) {
 }
 
 function startQuizTimer() {
-    document.getElementById('quiz-timer').textContent = formatTime(quizState.elapsedSeconds);
-    if (quizState.timerInterval) clearInterval(quizState.timerInterval);
-    quizState.timerInterval = setInterval(() => {
-        quizState.elapsedSeconds++;
+    if (!quizState.startTime) quizState.startTime = Date.now() - quizState.elapsedSeconds * 1000;
+    const updateTimer = () => {
+        quizState.elapsedSeconds = Math.max(0, Math.floor((Date.now() - quizState.startTime) / 1000));
         document.getElementById('quiz-timer').textContent = formatTime(quizState.elapsedSeconds);
-    }, 1000);
+    };
+    updateTimer();
+    if (quizState.timerInterval) clearInterval(quizState.timerInterval);
+    quizState.timerInterval = setInterval(updateTimer, 1000);
 }
 
 function renderQuestion() {
@@ -732,7 +742,9 @@ function submitAnswer() {
 
     // 更新连续打卡
     if (appData.lastStudyDate !== today) {
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterday = formatLocalDate(yesterdayDate);
         appData.streak = appData.lastStudyDate === yesterday ? appData.streak + 1 : 1;
         appData.lastStudyDate = today;
     }
@@ -773,6 +785,9 @@ function nextQuestion() {
 function finishQuiz() {
     if (quizState.finished) return;
     quizState.finished = true;
+    if (quizState.startTime) {
+        quizState.elapsedSeconds = Math.max(0, Math.floor((Date.now() - quizState.startTime) / 1000));
+    }
     clearInterval(quizState.timerInterval);
     const correct = quizState.answers.filter((a, i) => a === quizState.questions[i].answer).length;
     const total = quizState.questions.length;
@@ -817,7 +832,7 @@ function reviewWrong() {
 }
 
 function exitQuiz() {
-    if (confirm('确定要退出本次练习吗？进度将不会保存。\nExit this practice session? Your progress will not be saved.')) {
+    if (confirm('确定要退出本次练习吗？已提交题目的错题与复习记录会保留，但本次完整练习不会加入历史。\nExit this practice? Submitted answers keep their mistake/review updates, but the full session will not be saved to history.')) {
         clearInterval(quizState.timerInterval);
         resetQuizSetup();
     }
@@ -843,7 +858,7 @@ function updateSRS(questionId, correct) {
     }
     const next = new Date(today);
     next.setDate(next.getDate() + srs.interval);
-    srs.nextReview = next.toISOString().split('T')[0];
+    srs.nextReview = formatLocalDate(next);
     srs.lastReview = getTodayStr();
 }
 
@@ -1169,7 +1184,7 @@ function generateAIResponse(question) {
     // 关键词匹配知识库
     const q = question.toLowerCase();
     for (const [key, value] of Object.entries(AI_KNOWLEDGE)) {
-        if (q.includes(key.toLowerCase()) || q.includes(key.toLowerCase().substring(0, 2))) {
+        if (q.includes(key.toLowerCase())) {
             return value;
         }
     }
@@ -1236,7 +1251,9 @@ function renderTrendChart() {
     // 最近7天
     const days = [];
     for (let i = 6; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
+        const day = new Date();
+        day.setDate(day.getDate() - i);
+        const d = formatLocalDate(day);
         days.push({ date: d, count: appData.dailyStats[d]?.questions || 0 });
     }
     const max = Math.max(...days.map(d => d.count), 5);
@@ -1740,6 +1757,8 @@ function resetProgress() {
         appData.dailyStats = {};
         appData.studyTime = 0;
         appData.streak = 0;
+        appData.lastStudyDate = null;
+        appData.memberStats = {};
         saveData(appData);
         showToast('学习记录已重置');
         renderDashboard();
