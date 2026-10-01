@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IGCSE 智能备考平台 · IGCSE Smart Revision Platform</title>
-    <link rel="stylesheet" href="css/style.css?v=20260930-bi1">
+    <link rel="stylesheet" href="css/style.css?v=20261001-members1">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
 </head>
 <body>
@@ -131,6 +131,9 @@
                 </a>
                 <a class="nav-item" data-page="analytics">
                     <span class="nav-icon">📊</span><span class="nav-text">学习分析<span class="nav-en">Analytics</span></span>
+                </a>
+                <a class="nav-item" data-page="leaderboard">
+                    <span class="nav-icon">🏆</span><span class="nav-text">学习排行榜<span class="nav-en">Leaderboard</span></span>
                 </a>
                 <a class="nav-item" data-page="members">
                     <span class="nav-icon">👥</span><span class="nav-text">成员管理<span class="nav-en">Members</span></span>
@@ -629,6 +632,36 @@
                     </div>
                 </section>
 
+                <!-- 学习排行榜 -->
+                <section id="page-leaderboard" class="page">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h3>🏆 学习排行榜<span class="bi-en">Study Leaderboard</span></h3>
+                            <p class="page-desc">按学习时长、做题数量与正确率综合排名，每天零点自动开启新一期榜单<span class="bi-en">Ranked by study time, number of questions and accuracy — a new round starts automatically at midnight each day.</span></p>
+                        </div>
+                        <div class="page-header-right">
+                            <select class="filter-select" id="lb-scope" aria-label="榜单范围 Scope" onchange="renderLeaderboard()">
+                                <option value="today">今日榜 Today</option>
+                                <option value="week">近 7 天 Last 7 days</option>
+                                <option value="all">总榜 All time</option>
+                                <option value="history">历史某天 Pick a day</option>
+                            </select>
+                            <select class="filter-select" id="lb-sort" aria-label="排序方式 Sort by" onchange="renderLeaderboard()">
+                                <option value="score">综合排名 Overall</option>
+                                <option value="seconds">学习时长 Study time</option>
+                                <option value="questions">做题数量 Questions</option>
+                                <option value="accuracy">正确率 Accuracy</option>
+                            </select>
+                            <select class="filter-select hidden" id="lb-date" aria-label="历史日期 Date" onchange="renderLeaderboard()"></select>
+                        </div>
+                    </div>
+                    <div class="lb-summary" id="lb-summary"></div>
+                    <div class="leaderboard-list" id="leaderboard-list"></div>
+                    <p class="lb-note">📊 综合分算法 = 正确率 × 50% + 学习时长（相对榜首）× 30% + 做题量（相对榜首）× 20%，满分 100。<span class="bi-en">Overall score = accuracy × 50% + study time (relative to the leader) × 30% + questions (relative to the leader) × 20%, out of 100.</span></p>
+                    <p class="lb-note">📅 每天的练习会写入当天榜单，并在「历史某天」中保留最近 30 天的快照；没有学习记录的成员不参与排名。<span class="bi-en">Each day's practice is written to that day's board; the last 30 daily snapshots are kept. Members with no study record are not ranked.</span></p>
+                    <p class="lb-note">📌 统计口径：题库练习的用时、题量与正确率（每次提交一组练习后写入）。闪卡与默写暂不计入排名。<span class="bi-en">Scope: time, question count and accuracy from question-bank practice, recorded after each practice set. Flashcards and dictation are not ranked yet.</span></p>
+                </section>
+
                 <!-- 成员管理 -->
                 <section id="page-members" class="page">
                     <div class="page-header">
@@ -673,6 +706,8 @@
                     </div>
                     <div class="members-list-section">
                         <h4>👥 成员列表<span class="bi-en">Member list</span></h4>
+                        <p class="page-desc" id="members-tip"></p>
+                        <div class="lb-summary" id="members-counts"></div>
                         <div id="members-list" class="members-list"></div>
                     </div>
                 </section>
@@ -937,17 +972,17 @@
     <!-- Toast 提示 -->
     <div id="toast" class="toast hidden"></div>
 
-    <script src="js/data-q1.js?v=20260930-bi1"></script>
-    <script src="js/data-q2.js?v=20260930-bi1"></script>
-    <script src="js/data-flashcards.js?v=20260930-bi1"></script>
-    <script src="js/data-mustknow.js?v=20260930-bi1"></script>
-    <script src="js/data-keyunits.js?v=20260930-bi1"></script>
-    <script src="js/data-other.js?v=20260930-bi1"></script>
-    <script src="js/data-focus.js?v=20260930-bi1"></script>
-    <script src="js/data-resources.js?v=20260930-bi1"></script>
-    <script src="js/data.js?v=20260930-bi1"></script>
-    <script src="js/glossary.js?v=20260930-bi1"></script>
-    <script src="js/app.js?v=20260930-bi1"></script>
-    <script src="js/typing.js?v=20260930-bi1"></script>
+    <script src="js/data-q1.js?v=20261001-members1"></script>
+    <script src="js/data-q2.js?v=20261001-members1"></script>
+    <script src="js/data-flashcards.js?v=20261001-members1"></script>
+    <script src="js/data-mustknow.js?v=20261001-members1"></script>
+    <script src="js/data-keyunits.js?v=20261001-members1"></script>
+    <script src="js/data-other.js?v=20261001-members1"></script>
+    <script src="js/data-focus.js?v=20261001-members1"></script>
+    <script src="js/data-resources.js?v=20261001-members1"></script>
+    <script src="js/data.js?v=20261001-members1"></script>
+    <script src="js/glossary.js?v=20261001-members1"></script>
+    <script src="js/app.js?v=20261001-members1"></script>
+    <script src="js/typing.js?v=20261001-members1"></script>
 </body>
 </html>
