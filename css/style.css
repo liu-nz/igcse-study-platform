@@ -2718,32 +2718,13 @@ body.dark-mode .kwt-def { color:#dfe6ee; }
 body.no-kw .kw-term { background:none; border-bottom:none; padding:0; cursor:inherit; box-shadow:none; }
 
 /* ========================================
-   学习排行榜 & 成员列表 (Leaderboard & Members)
+   成员列表 (Members)
    ======================================== */
 .lb-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:20px; }
 .lb-stat { background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; text-align:center; }
 .lb-stat-value { display:block; font-size:26px; font-weight:700; color:var(--primary-light); line-height:1.3; }
 .lb-stat-label { display:block; font-size:12px; color:var(--text-light); margin-top:2px; }
-
-.leaderboard-list { background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
-.lb-head, .lb-row {
-  display:grid; grid-template-columns:70px minmax(150px,2fr) 130px 100px 100px 100px 100px;
-  gap:10px; align-items:center; padding:12px 18px;
-}
-.lb-head { background:var(--bg); font-size:12px; font-weight:600; color:var(--text-light); border-bottom:1px solid var(--border); }
-.lb-row { border-bottom:1px solid var(--border); font-size:13px; color:var(--text); transition:background 0.2s ease; }
-.lb-row:last-child { border-bottom:none; }
-.lb-row:hover { background:var(--bg); }
-.lb-me { background:rgba(41,128,185,0.08); }
-.lb-me:hover { background:rgba(41,128,185,0.14); }
-.lb-rank { font-size:18px; font-weight:700; text-align:center; color:var(--text); }
-.lb-member { display:flex; align-items:center; gap:10px; min-width:0; }
-.lb-name { font-weight:600; overflow-wrap:anywhere; }
 .lb-me-tag { font-style:normal; font-size:10px; margin-left:6px; padding:1px 6px; border-radius:8px; background:var(--primary-light); color:#fff; }
-.lb-num { text-align:center; color:var(--text-light); }
-.lb-score { text-align:center; font-weight:700; color:var(--warning); font-size:15px; }
-.lb-note { margin-top:14px; font-size:12px; line-height:1.8; color:var(--text-light); }
-.lb-note .bi-en, .lb-note .en-inline { font-size:11px; }
 
 .member-avatar.sm { width:28px; height:28px; font-size:12px; }
 .member-stats { display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end; max-width:320px; }
@@ -2754,13 +2735,13 @@ body.no-kw .kw-term { background:none; border-bottom:none; padding:0; cursor:inh
 .members-list-section .lb-summary { margin-top:14px; margin-bottom:14px; }
 #members-tip { margin-bottom:12px; }
 
+/* 当前身份无权访问的页面提示（如访客打开成员管理） */
+.access-denied { text-align:center; padding:48px 20px; }
+.access-denied .access-denied-icon { font-size:44px; display:block; margin-bottom:12px; }
+.access-denied h4 { font-size:18px; margin-bottom:8px; }
+.access-denied p { font-size:13px; color:var(--text-light); line-height:1.8; }
+
 @media(max-width:900px){
-  .lb-head { display:none; }
-  .lb-row { grid-template-columns:50px 1fr auto; grid-auto-rows:min-content; row-gap:6px; padding:14px 16px; }
-  .lb-role { grid-column:2; justify-self:start; }
-  .lb-num, .lb-score { text-align:left; font-size:12px; }
-  .lb-num::before, .lb-score::before { content:attr(data-label) " "; color:var(--text-light); font-weight:400; }
-  .lb-score { grid-column:3; grid-row:1; }
   .member-item { flex-wrap:wrap; }
   .member-stats { max-width:none; justify-content:flex-start; }
 }

@@ -78,19 +78,17 @@ function getDefaultData() {
         })),
         // 每位成员的学习记录：id -> { days: { 'YYYY-MM-DD': {questions, correct, seconds} } }
         memberStats: {},
-        // 每日榜单快照：'YYYY-MM-DD' -> [ {rank, id, name, role, score, questions, correct, seconds} ]
-        leaderboardHistory: {},
     };
 }
 
 let appData = loadData();
 
-// 兼容旧存档：补齐成员登记表与排行榜所需字段
+// 兼容旧存档：补齐成员登记表字段，并清理已下线的排行榜快照数据
 (function migrateMemberData() {
     const defaults = getDefaultData();
     if (!Array.isArray(appData.members)) appData.members = defaults.members;
     if (!appData.memberStats || typeof appData.memberStats !== 'object') appData.memberStats = {};
-    if (!appData.leaderboardHistory || typeof appData.leaderboardHistory !== 'object') appData.leaderboardHistory = {};
+    if ('leaderboardHistory' in appData) delete appData.leaderboardHistory;
 })();
 
 // ========== 工具函数 ==========
@@ -200,6 +198,8 @@ function handleLogout() {
     currentUser = null;
     appData.currentUser = null;
     saveData(appData);
+    currentPage = null;
+    applyRolePermissions();
     document.getElementById('app').classList.add('hidden');
     document.getElementById('login-page').classList.remove('hidden');
     if (quizState.timerInterval) clearInterval(quizState.timerInterval);
@@ -212,6 +212,8 @@ function enterApp() {
     document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
     if (typeof applyKeywordSetting === 'function') applyKeywordSetting();
     document.getElementById('user-role').innerHTML = (ROLE_LABELS[currentUser.role] || '访客 Guest');
+    // 按身份显示/隐藏受限页面（访客看不到成员管理）
+    applyRolePermissions();
     // 登记本次访问的成员身份
     upsertMember(currentUser);
     saveData(appData);
@@ -224,6 +226,11 @@ function enterApp() {
 
 // ========== 导航 ==========
 function navigateTo(page) {
+    // 权限守卫：访客等无权身份不能进入受限页面
+    if (!canAccessPage(page)) {
+        showToast((PAGE_ACCESS_TIP[page] || '当前身份无权访问该页面。') + ' Members: owners/collaborators only');
+        return;
+    }
     if (currentPage === 'quiz' && page !== 'quiz') { clearInterval(quizState.timerInterval); quizState.timerInterval = null; }
     if (currentPage === 'typing' && page !== 'typing' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     currentPage = page;
@@ -238,7 +245,6 @@ function navigateTo(page) {
         pastpapers: '历年真题 Past Papers', review: '智能复习 Smart Review', flashcards: '闪卡记忆 Flashcards',
         mustknow: '必考点 Must-Know', keyunits: '重点复习单元 Key Units',
         wrongbook: '错题本 Mistake Book', aichat: 'AI 问答 AI Tutor', analytics: '学习分析 Analytics',
-        leaderboard: '学习排行榜 Leaderboard',
         members: '成员管理 Members', settings: '设置 Settings'
     };
     document.getElementById('page-title').textContent = titles[page] || '';
@@ -282,8 +288,7 @@ function renderPage(page) {
         case 'keyunits': renderKeyUnits(); break;
         case 'wrongbook': renderWrongBook(); break;
         case 'analytics': renderAnalytics(); break;
-        case 'leaderboard': renderLeaderboard(); break;
-        case 'members': renderMembers(); break;
+        case 'members': canAccessPage('members') ? renderMembers() : renderAccessDenied('members'); break;
         case 'settings': loadSettingsForm(); break;
     }
 }
@@ -749,7 +754,7 @@ function finishQuiz() {
         answers: quizState.answers,
     });
     appData.studyTime += quizState.elapsedSeconds;
-    // 计入当前成员的个人学习档案，用于排行榜
+    // 计入当前成员的个人学习档案（成员管理页可见）
     recordMemberStudy(total, correct, quizState.elapsedSeconds);
     saveData(appData);
 }
@@ -1375,6 +1380,49 @@ function memberIdOf(user) {
 
 function isOwner() { return !!currentUser && currentUser.role === 'owner'; }
 
+// ========== 页面访问权限 ==========
+// 访客账户不可访问成员管理：只有所有者与协作者可以进入
+const PAGE_ACCESS = {
+    members: ['owner', 'collab'],
+};
+const PAGE_ACCESS_TIP = {
+    members: '成员管理仅所有者与协作者可访问，访客请先注册或登录账号。',
+};
+
+function currentRole() { return currentUser ? (currentUser.role || 'guest') : 'guest'; }
+
+function canAccessPage(page) {
+    const allowed = PAGE_ACCESS[page];
+    if (!allowed) return true;
+    return allowed.includes(currentRole());
+}
+
+function accessDeniedHtml(page) {
+    const tip = PAGE_ACCESS_TIP[page] || '当前身份无权访问该页面。';
+    return `<div class="access-denied">
+        <span class="access-denied-icon">🔒</span>
+        <h4>无权访问<span class="bi-en">Access denied</span></h4>
+        <p>${tip}<span class="bi-en">This page is for owners and collaborators only — guests need to register or log in first.</span></p>
+    </div>`;
+}
+
+// 按当前身份隐藏无权访问的导航项（访客看不到「成员管理」）
+function applyRolePermissions() {
+    document.querySelectorAll('.nav-item').forEach(item => {
+        const ok = canAccessPage(item.dataset.page);
+        item.classList.toggle('hidden', !ok);
+        if (!ok) {
+            item.setAttribute('aria-disabled', 'true');
+            item.title = '当前身份无权访问 Not available for your role';
+        } else {
+            item.removeAttribute('aria-disabled');
+            item.removeAttribute('title');
+        }
+    });
+    const denied = document.getElementById('page-members');
+    if (denied && !canAccessPage('members')) denied.classList.remove('active');
+}
+
 // 登录/注册/访客进入时登记该成员
 function upsertMember(user) {
     if (!user) return null;
@@ -1417,15 +1465,6 @@ function memberAggregate(id, date) {
     return { questions, correct, seconds, accuracy: questions ? Math.round(correct / questions * 100) : 0, days: days.length };
 }
 
-function memberAggregateRange(id, dayCount) {
-    const s = appData.memberStats[id];
-    if (!s || !s.days) return { questions: 0, correct: 0, seconds: 0, accuracy: 0, days: 0 };
-    const keys = Object.keys(s.days).sort().slice(-dayCount);
-    let questions = 0, correct = 0, seconds = 0;
-    keys.forEach(k => { const d = s.days[k]; questions += d.questions || 0; correct += d.correct || 0; seconds += d.seconds || 0; });
-    return { questions, correct, seconds, accuracy: questions ? Math.round(correct / questions * 100) : 0, days: keys.length };
-}
-
 // 记录一次练习：题量、正确数、用时（秒）
 function recordMemberStudy(questions, correct, seconds) {
     if (!currentUser) return;
@@ -1440,7 +1479,6 @@ function recordMemberStudy(questions, correct, seconds) {
     s.lastActiveISO = new Date().toISOString();
     const m = upsertMember(currentUser);
     if (m) m.lastActive = d;
-    saveLeaderboardSnapshot(d);
 }
 
 function formatShortTime(seconds) {
@@ -1451,131 +1489,23 @@ function formatShortTime(seconds) {
     return h > 0 ? `${h}h${m}m` : `${m}m`;
 }
 
-// ========== 排行榜 ==========
-// 综合分 = 正确率 × 50% + 学习时长（相对最长）× 30% + 做题量（相对最多）× 20%
-function buildLeaderboardRows(scope, date) {
-    const ids = [...new Set([...appData.members.map(m => m.id), ...Object.keys(appData.memberStats)])];
-    let rows = ids.map(id => {
-        const m = appData.members.find(x => x.id === id);
-        const agg = scope === 'day' ? memberAggregate(id, date)
-            : scope === 'week' ? memberAggregateRange(id, 7)
-                : memberAggregate(id, null);
-        return {
-            id,
-            name: m ? m.name : id,
-            role: m ? m.role : 'guest',
-            avatarColor: m ? m.avatarColor : '#7f8c8d',
-            demo: !!(m && m.demo),
-            questions: agg.questions,
-            correct: agg.correct,
-            seconds: agg.seconds,
-            accuracy: agg.accuracy,
-            activeDays: agg.days,
-        };
-    }).filter(r => !r.demo && (r.questions > 0 || r.seconds > 0));
-    const maxSeconds = Math.max(1, ...rows.map(r => r.seconds));
-    const maxQuestions = Math.max(1, ...rows.map(r => r.questions));
-    rows.forEach(r => {
-        r.score = Math.round(r.accuracy * 0.5 + (r.seconds / maxSeconds * 100) * 0.3 + (r.questions / maxQuestions * 100) * 0.2);
-    });
-    return rows;
-}
-
-function sortLeaderboard(rows, sortBy) {
-    const key = sortBy || 'score';
-    return rows.sort((a, b) => {
-        if (key === 'accuracy') return b.accuracy - a.accuracy || b.questions - a.questions;
-        if (key === 'seconds') return b.seconds - a.seconds || b.accuracy - a.accuracy;
-        if (key === 'questions') return b.questions - a.questions || b.accuracy - a.accuracy;
-        return b.score - a.score || b.accuracy - a.accuracy;
-    });
-}
-
-function saveLeaderboardSnapshot(date) {
-    const rows = sortLeaderboard(buildLeaderboardRows('day', date), 'score');
-    appData.leaderboardHistory[date] = rows.map((r, i) => ({
-        rank: i + 1, id: r.id, name: r.name, role: r.role,
-        score: r.score, questions: r.questions, correct: r.correct, seconds: r.seconds, accuracy: r.accuracy,
-    }));
-    // 只保留最近 30 天
-    const keys = Object.keys(appData.leaderboardHistory).sort();
-    while (keys.length > 30) delete appData.leaderboardHistory[keys.shift()];
-}
-
-function renderLeaderboard() {
-    const scope = document.getElementById('lb-scope')?.value || 'today';
-    const sortBy = document.getElementById('lb-sort')?.value || 'score';
-    const dateSel = document.getElementById('lb-date');
-    const today = getTodayStr();
-
-    // 历史日期下拉
-    const dates = Object.keys(appData.leaderboardHistory).sort().reverse();
-    if (dateSel) {
-        dateSel.innerHTML = dates.length ? dates.map(d => `<option value="${d}">${d}</option>`).join('') : '<option value="">暂无历史快照 No snapshot yet</option>';
-        dateSel.classList.toggle('hidden', scope !== 'history');
-    }
-
-    let rows, scopeLabel;
-    if (scope === 'history') {
-        const d = dateSel && dateSel.value;
-        rows = d && appData.leaderboardHistory[d] ? appData.leaderboardHistory[d].map(r => ({ ...r, seconds: r.seconds || 0 })) : [];
-        scopeLabel = d ? `${d} 榜单` : '历史榜单';
-    } else if (scope === 'week') {
-        rows = sortLeaderboard(buildLeaderboardRows('week'), sortBy);
-        scopeLabel = '近 7 天 Last 7 days';
-    } else if (scope === 'all') {
-        rows = sortLeaderboard(buildLeaderboardRows('all'), sortBy);
-        scopeLabel = '总榜 All time';
-    } else {
-        rows = sortLeaderboard(buildLeaderboardRows('day', today), sortBy);
-        scopeLabel = `今日榜 ${today}`;
-    }
-
-    // 顶部概览
-    const summary = document.getElementById('lb-summary');
-    const totalQ = rows.reduce((s, r) => s + (r.questions || 0), 0);
-    const totalC = rows.reduce((s, r) => s + (r.correct || 0), 0);
-    const totalS = rows.reduce((s, r) => s + (r.seconds || 0), 0);
-    summary.innerHTML = `
-        <div class="lb-stat"><span class="lb-stat-value">${rows.length}</span><span class="lb-stat-label">上榜人数 Ranked</span></div>
-        <div class="lb-stat"><span class="lb-stat-value">${totalQ}</span><span class="lb-stat-label">做题总数 Questions</span></div>
-        <div class="lb-stat"><span class="lb-stat-value">${formatShortTime(totalS)}</span><span class="lb-stat-label">学习总时长 Time</span></div>
-        <div class="lb-stat"><span class="lb-stat-value">${totalQ ? Math.round(totalC / totalQ * 100) : 0}%</span><span class="lb-stat-label">平均正确率 Accuracy</span></div>
-    `;
-
-    const list = document.getElementById('leaderboard-list');
-    if (!rows.length) {
-        list.innerHTML = '<div class="empty-state">这个时间段还没有学习记录，先去做一组练习吧！<span class="bi-en">No study records in this period yet — go and do a practice set!</span></div>';
-        return;
-    }
-    const medals = ['🥇', '🥈', '🥉'];
-    const myId = currentUser ? memberIdOf(currentUser) : '';
-    list.innerHTML = `
-        <div class="lb-head">
-            <span>排名 Rank</span><span>成员 Member</span><span>身份 Role</span>
-            <span>学习时长 Time</span><span>做题数 Questions</span><span>正确率 Accuracy</span><span>综合分 Score</span>
-        </div>
-        ${rows.map((r, i) => `
-        <div class="lb-row ${r.id === myId ? 'lb-me' : ''}">
-            <span class="lb-rank">${medals[i] || (i + 1)}</span>
-            <span class="lb-member">
-                <span class="member-avatar sm" style="background:${r.avatarColor || '#7f8c8d'}">${escapeHtml((r.name || '?').charAt(0))}</span>
-                <span class="lb-name">${escapeHtml(r.name || r.id)}${r.id === myId ? '<em class="lb-me-tag">我 You</em>' : ''}</span>
-            </span>
-            <span class="lb-role"><span class="member-role-badge role-${r.role}">${ROLE_LABELS[r.role] || r.role}</span></span>
-            <span class="lb-num" data-label="时长">${formatShortTime(r.seconds || 0)}</span>
-            <span class="lb-num" data-label="题量">${r.questions || 0}</span>
-            <span class="lb-num" data-label="正确率">${r.accuracy || 0}%</span>
-            <span class="lb-score" data-label="综合分">${r.score || 0}</span>
-        </div>
-        `).join('')}
-    `;
-    refreshKeywords(list);
-}
-
 // ========== 成员列表 ==========
+function renderAccessDenied(page) {
+    const el = document.getElementById('page-' + page);
+    if (!el) return;
+    const holder = el.querySelector('.members-list-section') || el;
+    const list = document.getElementById('members-list');
+    if (list) list.innerHTML = accessDeniedHtml(page);
+    const counter = document.getElementById('members-counts');
+    if (counter) counter.innerHTML = '';
+    const tip = document.getElementById('members-tip');
+    if (tip) tip.innerHTML = '';
+    refreshKeywords(holder);
+}
+
 function renderMembers() {
     const list = document.getElementById('members-list');
+    if (!canAccessPage('members')) { renderAccessDenied('members'); return; }
     const owner = isOwner();
     const real = appData.members.filter(m => !m.demo);
     const demo = appData.members.filter(m => m.demo);
@@ -1625,7 +1555,7 @@ function renderMembers() {
     };
 
     list.innerHTML = real.length
-        ? real.map(rowHtml).join('') + (demo.length ? `<p class="page-desc" style="margin-top:12px">以下为内置示例成员，未在本机登录过，不参与排名。<span class="bi-en">Built-in demo members that have never signed in on this device — excluded from rankings.</span></p>` + demo.map(rowHtml).join('') : '')
+        ? real.map(rowHtml).join('') + (demo.length ? `<p class="page-desc" style="margin-top:12px">以下为内置示例成员，未在本机登录过。<span class="bi-en">Built-in demo members that have never signed in on this device.</span></p>` + demo.map(rowHtml).join('') : '')
         : '<div class="empty-state">还没有成员登录记录。把邀请链接或访问密码分享给好友，他们登录后会出现在这里。<span class="bi-en">No sign-ins yet. Share the invite link or access code — members appear here once they log in.</span></div>';
     refreshKeywords(list);
 }
