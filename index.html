@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IGCSE 智能备考平台 · IGCSE Smart Revision Platform</title>
-    <link rel="stylesheet" href="css/style.css?v=20261001-optbi1">
+    <link rel="stylesheet" href="css/style.css?v=20261001-resume5">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
 </head>
 <body>
@@ -317,6 +317,12 @@
                 <!-- 题库刷题 -->
                 <section id="page-quiz" class="page">
                     <div id="quiz-setup" class="quiz-setup">
+                        <div id="quiz-recovery" class="dashboard-card hidden" style="margin-bottom:16px">
+                            <h4>继续上次练习 Resume practice</h4>
+                            <p id="quiz-recovery-summary" class="page-desc"></p>
+                            <button id="quiz-resume" class="btn btn-primary" onclick="resumeQuizSession()">继续 Continue</button>
+                            <button class="btn btn-outline" onclick="discardQuizDraft()">放弃草稿 Discard draft</button>
+                        </div>
                         <div class="focus-banner"><strong>四科专项 · 80 道新增原创练习 Four-Subject Focus · 80 original practice items</strong><p>ICT 0417 · CS 0478 · ESL 0510 · Math 0580 Extended。附解析，用于巩固知识；不等同于完整真题或实操考试。<span class="bi-en">With explanations, for consolidating knowledge — not a substitute for complete past papers or practical exams.</span></p></div>
                         <h3>选择练习模式<span class="bi-en">Choose a practice mode</span></h3>
                         <p class="page-desc">从内置题库中选择题目开始练习<span class="bi-en">Pick questions from the built-in question bank to start practising.</span></p>
@@ -396,7 +402,7 @@
                             <div class="quiz-timer">
                                 ⏱️ <span id="quiz-timer">00:00</span>
                             </div>
-                            <button class="btn btn-outline btn-sm" onclick="exitQuiz()">退出 <span class="en-inline">Exit</span></button>
+                            <button class="btn btn-outline btn-sm" onclick="exitQuiz()">暂停 <span class="en-inline">Exit</span></button>
                         </div>
                         <div class="progress-bar">
                             <div class="progress-fill" id="quiz-progress-fill"></div>
@@ -1010,7 +1016,8 @@
     <script src="js/data.js?v=20261001-optbi1"></script>
     <script src="js/glossary.js?v=20261001-optbi1"></script>
     <script src="js/data-options-i18n.js?v=20261001-optbi1"></script>
-    <script src="js/app.js?v=20261001-backup4"></script>
+    <script src="js/app.js?v=20261001-resume5"></script>
+    <script src="js/quiz-recovery.js?v=20261001-resume1"></script>
     <script src="js/backup.js?v=20261001-backup1"></script>
     <script src="js/typing.js?v=20261001-optbi1"></script>
 </body>

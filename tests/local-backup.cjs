@@ -20,7 +20,7 @@ assert.equal(run('conflicts.srsData.q1.interval'),21,'keep current SRS');
 for (const mutation of ["x.version=100", "x.quizRecords[0].answers=[7]", "x.quizRecords[0].date='2026-02-30'", "x.flashcards[0].id=\"x');alert(1)//\"", "x.dailyStats['2026-10-01'].correct=2", "x.srsData.q1.easeFactor=-1", "x.typingWords.v1.correct=10"]) {
  assert.throws(()=>run(`{let x=JSON.parse(JSON.stringify(raw));${mutation};normaliseBackup(x)}`),undefined,mutation);
 }
-run(`appData=merged;appData.settings.apiKey='secret';currentUser=null;const payload=buildBackupPayload();const roundtrip=normaliseBackup(payload);`);
+run(`appData=merged;appData.settings.apiKey='secret';appData.quizDrafts={'owner:secret':{answers:['secret']}};currentUser=null;const payload=buildBackupPayload();const roundtrip=normaliseBackup(payload);`);
 assert.equal(run('payload.version'),2);
 assert.equal(run("JSON.stringify(payload).includes('secret')"),false,'export secrets excluded');
 assert.equal(run('roundtrip.quizRecords[0].questions[0].id'),'q1');

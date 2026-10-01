@@ -54,6 +54,7 @@ function getDefaultData() {
         users: [{ email: 'demo@igcse.com', password: '123456', name: 'Demo User', board: 'cie', role: 'owner' }],
         currentUser: null,
         quizRecords: [],
+        quizDrafts: {},
         wrongQuestions: [],
         srsData: {},
         flashcards: JSON.parse(JSON.stringify(FLASHCARD_DECKS)),
@@ -216,6 +217,8 @@ function handleGuestLogin() {
 }
 
 function handleLogout() {
+    if (currentPage === 'quiz') pauseQuizSession();
+    quizState = {questions:[],answers:[],timerInterval:null,elapsedSeconds:0,finished:true};
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     currentUser = null;
     appData.currentUser = null;
@@ -255,9 +258,10 @@ function navigateTo(page) {
     }
     const quizPlaying = !document.getElementById('quiz-playing')?.classList.contains('hidden');
     const activeQuiz = currentPage === 'quiz' && page !== 'quiz' && quizPlaying && quizState.questions.length > 0 && !quizState.finished;
-    if (activeQuiz && !confirm('当前练习还没完成，确定离开吗？已提交题目的错题与复习记录会保留，但本次完整练习不会加入历史。\nLeave this unfinished practice? Submitted answers keep their mistake/review updates, but the full session will not be saved to history.')) {
+    if (activeQuiz && !confirm('当前练习还没完成，确定暂停并离开吗？稍后可在刷题页面继续，离开期间不计时。\nPause this practice? You can resume from Practice; time away is excluded.')) {
         return;
     }
+    if (activeQuiz) pauseQuizSession();
     if (currentPage === 'quiz' && page !== 'quiz') { clearInterval(quizState.timerInterval); quizState.timerInterval = null; }
     if (currentPage === 'typing' && page !== 'typing' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     currentPage = page;
@@ -583,9 +587,11 @@ function confirmUpload() {
 
 // ========== 刷题模块 ==========
 function resetQuizSetup() {
+    if (quizState.questions.length && !quizState.finished) pauseQuizSession();
     clearInterval(quizState.timerInterval);
     quizState.timerInterval = null;
     updateQuizTopics();
+    renderQuizRecovery();
     document.getElementById('quiz-setup').classList.remove('hidden');
     document.getElementById('quiz-playing').classList.add('hidden');
     document.getElementById('quiz-result').classList.add('hidden');
@@ -610,8 +616,11 @@ function startQuiz(mode, topicOverride = null) {
     if (questions.length === 0) { showToast('没有符合条件的题目'); return; }
     if (count > 0 && count < questions.length) questions = questions.slice(0, count);
 
+    if (!prepareNewQuiz()) return;
     clearInterval(quizState.timerInterval);
     quizState = {
+        id: 'quiz-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2)),
+        draftSelections: new Array(questions.length).fill(null),
         questions,
         currentIndex: 0,
         answers: new Array(questions.length).fill(null),
@@ -636,6 +645,7 @@ function startQuizTimer() {
     const updateTimer = () => {
         quizState.elapsedSeconds = Math.max(0, Math.floor((Date.now() - quizState.startTime) / 1000));
         document.getElementById('quiz-timer').textContent = formatTime(quizState.elapsedSeconds);
+        if (quizState.elapsedSeconds % 10 === 0) { persistQuizDraft(); saveData(appData); }
     };
     updateTimer();
     if (quizState.timerInterval) clearInterval(quizState.timerInterval);
@@ -644,7 +654,7 @@ function startQuizTimer() {
 
 function renderQuestion() {
     const q = quizState.questions[quizState.currentIndex];
-    quizState.selectedOption = quizState.answers[quizState.currentIndex];
+    quizState.selectedOption = quizState.answers[quizState.currentIndex] ?? quizState.draftSelections?.[quizState.currentIndex] ?? null;
     quizState.submitted = quizState.answers[quizState.currentIndex] !== null && quizState.answers[quizState.currentIndex] !== undefined;
 
     document.getElementById('quiz-current').textContent = quizState.currentIndex + 1;
@@ -717,11 +727,15 @@ function renderQuestion() {
     document.getElementById('btn-next').classList.toggle('hidden', !quizState.submitted);
     document.getElementById('btn-next').textContent = quizState.currentIndex === quizState.questions.length - 1 ? '查看结果 Results' : '下一题 Next';
     refreshKeywords(document.getElementById('question-card'));
+    persistQuizDraft(); saveData(appData);
 }
 
 function selectOption(index) {
     if (quizState.submitted) return;
     quizState.selectedOption = index;
+    quizState.draftSelections ||= new Array(quizState.questions.length).fill(null);
+    quizState.draftSelections[quizState.currentIndex] = index;
+    persistQuizDraft(); saveData(appData);
     document.querySelectorAll('.option-item').forEach((el, i) => {
         el.classList.toggle('selected', i === index);
     });
@@ -756,7 +770,7 @@ function submitAnswer() {
 
     // SRS 更新
     updateSRS(q.id, isCorrect);
-
+    persistQuizDraft();
     saveData(appData);
     renderQuestion();
 }
@@ -807,7 +821,7 @@ function finishQuiz() {
 
     // 保存记录
     appData.quizRecords.push({
-        id: 'quiz-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2)),
+        id: quizState.id,
         date: getTodayStr(),
         total, correct,
         time: quizState.elapsedSeconds,
@@ -817,6 +831,7 @@ function finishQuiz() {
     appData.studyTime += quizState.elapsedSeconds;
     // 计入当前成员的个人学习档案（成员管理页可见）
     recordMemberStudy(total, correct, quizState.elapsedSeconds);
+    clearQuizDraft();
     saveData(appData);
 }
 
@@ -829,8 +844,8 @@ function reviewWrong() {
 }
 
 function exitQuiz() {
-    if (confirm('确定要退出本次练习吗？已提交题目的错题与复习记录会保留，但本次完整练习不会加入历史。\nExit this practice? Submitted answers keep their mistake/review updates, but the full session will not be saved to history.')) {
-        clearInterval(quizState.timerInterval);
+    if (confirm('暂停本次练习？已提交答案与选择会保存，可稍后继续。离开期间不计时。\nPause this quiz? Answers and selections are saved for resuming; time away is excluded.')) {
+        pauseQuizSession();
         resetQuizSetup();
     }
 }
@@ -954,9 +969,12 @@ function getReviewSchedule(today = getTodayStr()) {
 function startReviewSession() {
     const dueItems = getDueReviewItems();
     if (dueItems.length === 0) { showToast('没有需要复习的内容'); return; }
+    if (!prepareNewQuiz()) return;
     clearInterval(quizState.timerInterval);
     navigateTo('quiz');
     quizState = {
+        id: 'quiz-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2)),
+        draftSelections: new Array(dueItems.length).fill(null),
         questions: dueItems,
         currentIndex: 0,
         answers: new Array(dueItems.length).fill(null),
@@ -1886,6 +1904,7 @@ function exportData() {
 function resetProgress() {
     if (confirm('确定要重置所有学习记录吗？这将清除做题记录、错题和复习数据，但保留上传的资料。\nReset all study records? This clears your practice records, mistakes and review data, but keeps uploaded materials.')) {
         appData.quizRecords = [];
+        appData.quizDrafts = {};
         appData.wrongQuestions = [];
         appData.srsData = {};
         appData.dailyStats = {};
