@@ -2231,6 +2231,11 @@ body {
     margin-bottom: 20px;
 }
 
+
+.upload-area.dragging {
+    border-color: var(--primary-light);
+    background: rgba(41,128,185,0.08);
+}
 .upload-area:hover {
     border-color: var(--primary-light);
     background: rgba(41,128,185,0.03);

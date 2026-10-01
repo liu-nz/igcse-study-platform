@@ -105,14 +105,29 @@ function formatTime(seconds) {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function formatLocalDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 function getTodayStr() {
-    return new Date().toISOString().split('T')[0];
+    return formatLocalDate(new Date());
+}
+
+function parseLocalDate(dateStr) {
+    const [year, month, day] = String(dateStr || '').split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
 }
 
 function getDaysUntil(dateStr) {
-    const target = new Date(dateStr);
+    const target = parseLocalDate(dateStr);
+    if (!target) return 0;
     const now = new Date();
-    return Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
 }
 
 function shuffleArray(arr) {
@@ -229,6 +244,11 @@ function navigateTo(page) {
     // 权限守卫：访客等无权身份不能进入受限页面
     if (!canAccessPage(page)) {
         showToast((PAGE_ACCESS_TIP[page] || '当前身份无权访问该页面。') + ' Members: owners/collaborators only');
+        return;
+    }
+    const quizPlaying = !document.getElementById('quiz-playing')?.classList.contains('hidden');
+    const activeQuiz = currentPage === 'quiz' && page !== 'quiz' && quizPlaying && quizState.questions.length > 0 && !quizState.finished;
+    if (activeQuiz && !confirm('当前练习还没完成，确定离开吗？已提交题目的错题与复习记录会保留，但本次完整练习不会加入历史。\nLeave this unfinished practice? Submitted answers keep their mistake/review updates, but the full session will not be saved to history.')) {
         return;
     }
     if (currentPage === 'quiz' && page !== 'quiz') { clearInterval(quizState.timerInterval); quizState.timerInterval = null; }
@@ -435,17 +455,17 @@ function renderMaterials() {
     }
     const typeNames = { notes: '讲义笔记', pastpaper: '历年真题', markscheme: '评分标准', summary: '考点总结', other: '其他' };
     grid.innerHTML = materials.map(m => `
-        <div class="material-card" onclick="openMaterial('${m.id}')">
-            <div class="material-icon">${m.icon}</div>
-            <div class="material-name">${m.name}</div>
+        <div class="material-card" onclick="openMaterial('${escapeHtml(String(m.id))}')">
+            <div class="material-icon">${escapeHtml(m.icon || '📁')}</div>
+            <div class="material-name">${escapeHtml(m.name || '')}</div>
             <div class="material-meta">
-                <span class="material-tag">${m.subject}</span>
-                <span class="material-tag">${typeNames[m.type] || m.type}</span>
-                ${(m.tags || []).map(t => `<span class="material-tag">${t}</span>`).join('')}
+                <span class="material-tag">${escapeHtml(m.subject || '')}</span>
+                <span class="material-tag">${escapeHtml(typeNames[m.type] || m.type || '')}</span>
+                ${(m.tags || []).map(t => `<span class="material-tag">${escapeHtml(t)}</span>`).join('')}
             </div>
             <div class="material-info">
-                <span>${m.size}</span>
-                <span>${m.date}</span>
+                <span>${escapeHtml(m.size || '')}</span>
+                <span>${escapeHtml(m.date || '')}</span>
             </div>
         </div>
     `).join('');
@@ -458,11 +478,12 @@ function openMaterial(id) {
     const typeNames = { notes: '讲义笔记 Notes', pastpaper: '历年真题 Past Paper', markscheme: '评分标准 Mark Scheme', summary: '考点总结 Summary', other: '其他 Other' };
     document.getElementById('material-modal-title').textContent = m.icon + ' ' + m.name;
     document.getElementById('material-modal-meta').innerHTML = `
-        <span class="material-tag">${m.subject}</span>
-        <span class="material-tag">${typeNames[m.type] || m.type}</span>
-        <span class="material-tag">📦 ${m.size}</span>
-        <span class="material-tag">📅 ${m.date}</span>
-        ${(m.tags || []).map(t => `<span class="material-tag">${t}</span>`).join('')}
+        <span class="material-tag">${escapeHtml(m.subject || '')}</span>
+        <span class="material-tag">${escapeHtml(typeNames[m.type] || m.type || '')}</span>
+        <span class="material-tag">📦 ${escapeHtml(m.size || '')}</span>
+        <span class="material-tag">📅 ${escapeHtml(m.date || '')}</span>
+        ${(m.tags || []).map(t => `<span class="material-tag">${escapeHtml(t)}</span>`).join('')}
+        ${m.fileName ? `<span class="material-tag">📎 ${escapeHtml(m.fileName)}</span>` : ''}
     `;
     const contentEl = document.getElementById('material-modal-content');
     if (m.content) {
@@ -490,26 +511,62 @@ function closeModal(id) {
     document.getElementById(id).classList.add('hidden');
 }
 
+function formatFileSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0) return '0 B';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function handleMaterialFileSelection(file) {
+    const hint = document.getElementById('upload-file-status');
+    if (!file) {
+        if (hint) hint.textContent = '尚未选择文件 No file selected';
+        return;
+    }
+    if (hint) hint.textContent = `${file.name} · ${formatFileSize(file.size)}`;
+    const nameInput = document.getElementById('upload-name');
+    if (nameInput && !nameInput.value.trim()) {
+        nameInput.value = file.name.replace(/\.[^.]+$/, '');
+    }
+}
+
 function confirmUpload() {
+    const fileInput = document.getElementById('file-input');
+    const file = fileInput?.files?.[0];
     const name = document.getElementById('upload-name').value.trim();
     const subject = document.getElementById('upload-subject').value;
     const type = document.getElementById('upload-type').value;
     const tags = document.getElementById('upload-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+    if (!file) { showToast('请先选择一个文件 Please select a file first'); return; }
     if (!name) { showToast('请输入资料名称'); return; }
+
+    const allowedExtensions = ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'];
+    const extension = (file.name.split('.').pop() || '').toLowerCase();
+    if (!allowedExtensions.includes(extension)) {
+        showToast('不支持该文件类型 Unsupported file type');
+        return;
+    }
+
     const icons = { notes: '📖', pastpaper: '📄', markscheme: '✅', summary: '📋', other: '📁' };
     appData.materials.push({
         id: 'mat' + Date.now(),
         name, subject, type, tags,
         icon: icons[type] || '📁',
-        size: (Math.random() * 5 + 0.5).toFixed(1) + ' MB',
+        size: formatFileSize(file.size),
+        fileName: file.name,
+        mimeType: file.type || '',
+        localMetadataOnly: true,
         date: getTodayStr(),
     });
     saveData(appData);
     closeModal('upload-modal');
     document.getElementById('upload-name').value = '';
     document.getElementById('upload-tags').value = '';
+    fileInput.value = '';
+    handleMaterialFileSelection(null);
     renderMaterials();
-    showToast('资料上传成功！');
+    showToast('资料记录已保存；文件本体暂未上传云端 File metadata saved locally');
 }
 
 // ========== 刷题模块 ==========
@@ -573,12 +630,14 @@ function startQuiz(mode, topicOverride = null) {
 }
 
 function startQuizTimer() {
-    document.getElementById('quiz-timer').textContent = formatTime(quizState.elapsedSeconds);
-    if (quizState.timerInterval) clearInterval(quizState.timerInterval);
-    quizState.timerInterval = setInterval(() => {
-        quizState.elapsedSeconds++;
+    if (!quizState.startTime) quizState.startTime = Date.now() - quizState.elapsedSeconds * 1000;
+    const updateTimer = () => {
+        quizState.elapsedSeconds = Math.max(0, Math.floor((Date.now() - quizState.startTime) / 1000));
         document.getElementById('quiz-timer').textContent = formatTime(quizState.elapsedSeconds);
-    }, 1000);
+    };
+    updateTimer();
+    if (quizState.timerInterval) clearInterval(quizState.timerInterval);
+    quizState.timerInterval = setInterval(updateTimer, 1000);
 }
 
 function renderQuestion() {
@@ -683,7 +742,9 @@ function submitAnswer() {
 
     // 更新连续打卡
     if (appData.lastStudyDate !== today) {
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterday = formatLocalDate(yesterdayDate);
         appData.streak = appData.lastStudyDate === yesterday ? appData.streak + 1 : 1;
         appData.lastStudyDate = today;
     }
@@ -724,6 +785,9 @@ function nextQuestion() {
 function finishQuiz() {
     if (quizState.finished) return;
     quizState.finished = true;
+    if (quizState.startTime) {
+        quizState.elapsedSeconds = Math.max(0, Math.floor((Date.now() - quizState.startTime) / 1000));
+    }
     clearInterval(quizState.timerInterval);
     const correct = quizState.answers.filter((a, i) => a === quizState.questions[i].answer).length;
     const total = quizState.questions.length;
@@ -768,7 +832,7 @@ function reviewWrong() {
 }
 
 function exitQuiz() {
-    if (confirm('确定要退出本次练习吗？进度将不会保存。\nExit this practice session? Your progress will not be saved.')) {
+    if (confirm('确定要退出本次练习吗？已提交题目的错题与复习记录会保留，但本次完整练习不会加入历史。\nExit this practice? Submitted answers keep their mistake/review updates, but the full session will not be saved to history.')) {
         clearInterval(quizState.timerInterval);
         resetQuizSetup();
     }
@@ -794,7 +858,7 @@ function updateSRS(questionId, correct) {
     }
     const next = new Date(today);
     next.setDate(next.getDate() + srs.interval);
-    srs.nextReview = next.toISOString().split('T')[0];
+    srs.nextReview = formatLocalDate(next);
     srs.lastReview = getTodayStr();
 }
 
@@ -1073,14 +1137,28 @@ function addMessage(role, content, source) {
     const container = document.getElementById('chat-messages');
     const div = document.createElement('div');
     div.className = 'message ' + (role === 'user' ? 'user-message' : 'ai-message');
-    const avatar = role === 'user' ? '👤' : '🤖';
-    let html = `<div class="msg-avatar">${avatar}</div><div class="msg-content">`;
-    content.split('\n').forEach(line => {
-        if (line.trim()) html += `<p>${line}</p>`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar';
+    avatar.textContent = role === 'user' ? '👤' : '🤖';
+
+    const contentEl = document.createElement('div');
+    contentEl.className = 'msg-content';
+    String(content || '').split('\n').forEach(line => {
+        if (!line.trim()) return;
+        const p = document.createElement('p');
+        p.textContent = line;
+        contentEl.appendChild(p);
     });
-    if (source) html += `<div class="msg-source">📖 引用来源：${source}</div>`;
-    html += '</div>';
-    div.innerHTML = html;
+
+    if (source) {
+        const sourceEl = document.createElement('div');
+        sourceEl.className = 'msg-source';
+        sourceEl.textContent = '📖 引用来源：' + source;
+        contentEl.appendChild(sourceEl);
+    }
+
+    div.append(avatar, contentEl);
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
 }
@@ -1106,7 +1184,7 @@ function generateAIResponse(question) {
     // 关键词匹配知识库
     const q = question.toLowerCase();
     for (const [key, value] of Object.entries(AI_KNOWLEDGE)) {
-        if (q.includes(key.toLowerCase()) || q.includes(key.toLowerCase().substring(0, 2))) {
+        if (q.includes(key.toLowerCase())) {
             return value;
         }
     }
@@ -1173,7 +1251,9 @@ function renderTrendChart() {
     // 最近7天
     const days = [];
     for (let i = 6; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
+        const day = new Date();
+        day.setDate(day.getDate() - i);
+        const d = formatLocalDate(day);
         days.push({ date: d, count: appData.dailyStats[d]?.questions || 0 });
     }
     const max = Math.max(...days.map(d => d.count), 5);
@@ -1619,16 +1699,54 @@ function toggleDarkMode() {
     saveData(appData);
 }
 
+function checkDailyReminder() {
+    if (!currentUser || !appData.settings.reminder || !appData.settings.remindTime) return;
+    const now = new Date();
+    const currentTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    const today = getTodayStr();
+    if (currentTime < appData.settings.remindTime || appData.settings.lastReminderDate === today) return;
+    appData.settings.lastReminderDate = today;
+    saveData(appData);
+    showToast('🔔 到复习时间了！Time for your daily revision.', 5000);
+}
+
+function showReminderStatus() {
+    if (!appData.settings.reminder) {
+        showToast('每日提醒当前已关闭 Daily reminder is off');
+        return;
+    }
+    showToast(`🔔 今日提醒：${appData.settings.remindTime}（仅网站打开时生效）`);
+}
+
 function exportData() {
-    const dataStr = JSON.stringify(appData, null, 2);
+    const safeMembers = Array.isArray(appData.members)
+        ? appData.members.map(({ email, ...member }) => member)
+        : [];
+    const exportPayload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        quizRecords: appData.quizRecords,
+        wrongQuestions: appData.wrongQuestions,
+        srsData: appData.srsData,
+        flashcards: appData.flashcards,
+        materials: appData.materials,
+        settings: appData.settings,
+        dailyStats: appData.dailyStats,
+        studyTime: appData.studyTime,
+        streak: appData.streak,
+        lastStudyDate: appData.lastStudyDate,
+        members: safeMembers,
+        memberStats: appData.memberStats,
+    };
+    const dataStr = JSON.stringify(exportPayload, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'igcse-study-data-' + getTodayStr() + '.json';
     a.click();
-    URL.revokeObjectURL(url);
-    showToast('数据已导出');
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    showToast('学习数据已安全导出（不含账号密码）');
 }
 
 function resetProgress() {
@@ -1639,6 +1757,8 @@ function resetProgress() {
         appData.dailyStats = {};
         appData.studyTime = 0;
         appData.streak = 0;
+        appData.lastStudyDate = null;
+        appData.memberStats = {};
         saveData(appData);
         showToast('学习记录已重置');
         renderDashboard();
@@ -1814,10 +1934,44 @@ window.addEventListener('load', () => {
         currentUser = appData.currentUser;
         enterApp();
     }
+
     // 回车键登录
     document.getElementById('login-password').addEventListener('keydown', e => {
         if (e.key === 'Enter') handleLogin();
     });
+
+    // 上传文件：读取真实文件元数据，并支持拖放选择。
+    const fileInput = document.getElementById('file-input');
+    const uploadArea = document.getElementById('upload-area');
+    if (fileInput) {
+        fileInput.addEventListener('change', () => handleMaterialFileSelection(fileInput.files?.[0]));
+    }
+    if (uploadArea && fileInput) {
+        ['dragenter', 'dragover'].forEach(type => uploadArea.addEventListener(type, event => {
+            event.preventDefault();
+            uploadArea.classList.add('dragging');
+        }));
+        ['dragleave', 'drop'].forEach(type => uploadArea.addEventListener(type, event => {
+            event.preventDefault();
+            uploadArea.classList.remove('dragging');
+        }));
+        uploadArea.addEventListener('drop', event => {
+            const files = event.dataTransfer?.files;
+            if (!files?.length) return;
+            try {
+                const transfer = new DataTransfer();
+                transfer.items.add(files[0]);
+                fileInput.files = transfer.files;
+            } catch (e) {
+                showToast('请点击上传区域选择文件 Please click to select the file');
+                return;
+            }
+            handleMaterialFileSelection(fileInput.files[0]);
+        });
+    }
+
+    checkDailyReminder();
+    setInterval(checkDailyReminder, 60 * 1000);
 });
 
 // 窗口大小变化时重绘图表
