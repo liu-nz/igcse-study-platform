@@ -415,10 +415,10 @@
                                 <span class="q-badge" id="q-topic">代数</span>
                                 <span class="q-badge hot-badge hidden" id="q-hot">🔥 常考 Hot</span>
                             </div>
-                            <div class="question-text" id="question-text"></div>
+                            <div class="question-text" id="question-text" data-nokw="1"></div>
                             <p id="q-source" class="page-desc"></p>
-                            <div class="keywords-chips hidden" id="q-keywords"></div>
-                            <div class="options-list" id="options-list"></div>
+                            <div class="keywords-chips hidden" id="q-keywords" data-nokw="1"></div>
+                            <div class="options-list" id="options-list" data-nokw="1"></div>
                             <div class="question-result hidden" id="question-result">
                                 <div class="result-header" id="result-header"></div>
                                 <div class="result-answer" id="result-answer"></div>
@@ -555,7 +555,7 @@
                     <div id="flashcard-study" class="flashcard-study hidden">
                         <div class="flashcard-container">
                             <div class="flashcard" id="flashcard" onclick="flipCard()">
-                                <div class="flashcard-front" id="card-front"></div>
+                                <div class="flashcard-front" id="card-front" data-nokw="1"></div>
                                 <div class="flashcard-back" id="card-back"></div>
                             </div>
                             <div class="flashcard-progress">
@@ -743,7 +743,7 @@
                     <div class="command-controls"><label for="command-search">搜索英文／中文指令词 Search<input id="command-search" type="search" class="setting-input" placeholder="explain / 解释" oninput="renderCommandWords()"></label><button class="btn btn-primary" onclick="startCommandPractice()">答法辨析 Practice</button><button id="command-review-start" class="btn btn-outline" onclick="startCommandPractice(true)">重练待巩固 Review</button></div>
                     <p id="command-progress" class="page-desc" role="status" aria-live="polite"></p>
                     <div id="command-training" class="dashboard-card hidden">
-                        <h4 id="command-training-title"></h4><p id="command-question"></p><div id="command-options"></div><p id="command-feedback" role="status" aria-live="polite"></p><button id="command-next" class="btn btn-primary" onclick="nextCommandPractice()" disabled>下一题 Next</button>
+                        <h4 id="command-training-title"></h4><p id="command-question" data-nokw="1"></p><div id="command-options" data-nokw="1"></div><p id="command-feedback" role="status" aria-live="polite"></p><button id="command-next" class="btn btn-primary" onclick="nextCommandPractice()" disabled>下一题 Next</button>
                     </div>
                     <div id="command-list" class="command-list"></div>
                 </section>
@@ -892,9 +892,9 @@
                     <div id="typing-session" class="typing-card hidden">
                         <div class="typing-card-top"><span id="typing-progress"></span><span id="typing-category"></span><button class="btn btn-outline btn-sm" onclick="stopTyping()">结束本轮 <span class="en-inline">Finish</span></button></div>
                         <div class="progress-bar"><div id="typing-progress-fill" class="progress-fill"></div></div>
-                        <h4 id="typing-prompt"></h4>
+                        <h4 id="typing-prompt" data-nokw="1"></h4>
                         <div class="typing-tools"><button class="btn btn-outline btn-sm" id="typing-listen" onclick="speakTypingWord()">🔊 听发音 <span class="en-inline">Listen</span></button><button class="btn btn-outline btn-sm" id="typing-hint" onclick="hintTyping()">首字母提示 <span class="en-inline">First letters</span></button><button class="btn btn-outline btn-sm" id="typing-reveal" onclick="checkTyping(true)">查看答案 <span class="en-inline">Reveal</span></button></div>
-                        <p id="typing-hint-text" aria-live="polite"></p>
+                        <p id="typing-hint-text" data-nokw="1" aria-live="polite"></p>
                         <form id="typing-form"><label for="typing-input">输入英文单词或术语 Type the English word or term</label><input id="typing-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer…" aria-describedby="typing-feedback"><button id="typing-check" class="btn btn-primary" type="submit">检查答案 <span class="en-inline">Check</span></button><button id="typing-next" class="btn btn-primary hidden" type="button" onclick="nextTyping()">下一词 → <span class="en-inline">Next</span></button></form>
                         <div id="typing-feedback" class="typing-feedback" role="status" aria-live="polite"></div>
                     </div>
@@ -1026,7 +1026,7 @@
     <script src="js/data-focus.js?v=20261001-exam2"></script>
     <script src="js/data-resources.js?v=20261001-optbi1"></script>
     <script src="js/data.js?v=20261001-optbi1"></script>
-    <script src="js/glossary.js?v=20261001-exam2"></script>
+    <script src="js/glossary.js?v=20261003-context1"></script>
     <script src="js/data-options-i18n.js?v=20261001-optbi1"></script>
     <script src="js/data-exam-skills.js?v=20261001-exam1"></script>
     <script src="js/app.js?v=20261001-exam6"></script>
