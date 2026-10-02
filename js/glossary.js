@@ -507,7 +507,7 @@ const KW_RE = new RegExp(
   'gi'
 );
 
-const KW_SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION', 'BUTTON']);
+const KW_SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION', 'BUTTON', 'A', 'CODE', 'PRE']);
 
 function kwEscape(str) {
   const div = document.createElement('div');
@@ -542,15 +542,15 @@ function kwEnhanceTextNode(node, seen) {
     const word = match[0];
     const entry = KW_MAP.get(word.toLowerCase());
     if (!entry) continue;
+    if (kwIsAscii(word)) {
+      if (kwIsWordChar(text[idx - 1])) continue;
+      if (entry.csList.length && !entry.csList.includes(word)) continue;
+    }
     // 同一个区块内同一个词只标记一次，避免整篇密密麻麻
     if (seen) {
       const key = entry.zh + '|' + entry.en;
       if (seen.has(key)) continue;
       seen.add(key);
-    }
-    if (kwIsAscii(word)) {
-      if (kwIsWordChar(text[idx - 1])) continue;
-      if (entry.csList.length && !entry.csList.includes(word)) continue;
     }
     frag.appendChild(document.createTextNode(text.slice(last, idx)));
     frag.appendChild(kwMakeSpan(entry, word));
@@ -585,9 +585,12 @@ function enhanceKeywords(root) {
   nodes.forEach(node => {
     // 以 root 的直接子元素作为一个“区块”，区块内同一词条只高亮首次出现
     let block = node.parentElement, top = node.parentElement;
-    while (block && block.parentElement && block.parentElement !== root) { block = block.parentElement; }
+    while (block && block !== root && block.parentElement && block.parentElement !== root) { block = block.parentElement; }
     if (!block) block = top || root;
-    if (!seenByBlock.has(block)) seenByBlock.set(block, new Set());
+    if (!seenByBlock.has(block)) {
+      const existing = block.querySelectorAll ? block.querySelectorAll('.kw-term') : [];
+      seenByBlock.set(block, new Set(Array.from(existing, span => span.getAttribute('data-kw-zh') + '|' + span.getAttribute('data-kw-en'))));
+    }
     kwEnhanceTextNode(node, seenByBlock.get(block));
   });
 }
