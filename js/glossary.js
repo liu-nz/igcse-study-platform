@@ -521,6 +521,7 @@ function kwIsWordChar(ch) { return ch ? /[A-Za-z0-9_]/.test(ch) : false; }
 function kwMakeSpan(entry, text) {
   const span = document.createElement('span');
   span.className = 'kw-term';
+  span.tabIndex = 0;
   span.setAttribute('data-kw-en', entry.en);
   span.setAttribute('data-kw-zh', entry.zh);
   span.setAttribute('data-kw-def', entry.def);
@@ -598,6 +599,7 @@ function enhanceKeywords(root) {
 /* ---------- 悬浮释义气泡 ---------- */
 let kwTooltip = null;
 let kwActive = null;
+let kwPinned = false;
 
 function kwEnsureTooltip() {
   if (kwTooltip) return kwTooltip;
@@ -608,26 +610,46 @@ function kwEnsureTooltip() {
   kwTooltip.setAttribute('data-nokw', '1');
   document.body.appendChild(kwTooltip);
   document.addEventListener('mouseover', kwOnOver);
-  document.addEventListener('mouseleave', kwHide);
+  document.addEventListener('mouseleave', () => { if (!kwPinned) kwHide(); });
+  document.addEventListener('focusin', e => {
+    if (e.target.matches('.kw-term')) kwShow(e.target);
+    else kwHide();
+  });
+  document.addEventListener('focusout', e => { if (e.target === kwActive) kwHide(); });
   document.addEventListener('click', kwOnClick, true);
   window.addEventListener('scroll', kwHide, true);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') kwHide(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') kwHide();
+    else if (e.target.matches('.kw-term') && ['Enter', ' '].includes(e.key)) {
+      e.preventDefault();
+      if (e.target === kwActive) kwHide();
+      else { kwShow(e.target); kwPinned = true; }
+    }
+  });
   return kwTooltip;
 }
 
 function kwOnOver(e) {
   const target = e.target && e.target.closest ? e.target.closest('.kw-term') : null;
-  if (target) { if (target !== kwActive) { kwActive = target; kwShow(target); } }
-  else if (kwActive) kwHide();
+  if (kwPinned || e.target.closest?.('#kw-tooltip')) return;
+  if (target) { if (target !== kwActive) kwShow(target); }
+  else if (kwActive && document.activeElement !== kwActive) kwHide();
 }
 
 function kwOnClick(e) {
   const target = e.target && e.target.closest ? e.target.closest('.kw-term') : null;
-  if (target) { kwActive = target; kwShow(target); }
+  if (target) {
+    if (target === kwActive && kwPinned) kwHide();
+    else { kwShow(target); kwPinned = true; }
+  }
   else if (kwTooltip && !kwTooltip.classList.contains('hidden')) kwHide();
 }
 
 function kwShow(el) {
+  kwHide();
+  kwActive = el;
+  el.classList.add('is-active');
+  el.setAttribute('aria-describedby', 'kw-tooltip');
   const tip = kwEnsureTooltip();
   const en = el.getAttribute('data-kw-en') || '';
   const zh = el.getAttribute('data-kw-zh') || '';
@@ -648,6 +670,8 @@ function kwShow(el) {
 }
 
 function kwHide() {
+  if (kwActive) { kwActive.classList.remove('is-active'); kwActive.removeAttribute('aria-describedby'); }
+  kwPinned = false;
   kwActive = null;
   if (kwTooltip) kwTooltip.classList.add('hidden');
 }

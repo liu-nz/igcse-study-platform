@@ -286,6 +286,7 @@ function navigateTo(page) {
 
 // 关键词高亮：调用术语库扫描指定容器内的文本节点
 function refreshKeywords(el) {
+    if (typeof kwHide === 'function') kwHide();
     try { if (typeof enhanceKeywords === 'function') enhanceKeywords(el || document.body); } catch (e) { /* 术语库未加载时忽略 */ }
 }
 

@@ -2803,6 +2803,7 @@ h1 .bi-en, h2 .bi-en, h3 .bi-en, h4 .bi-en { font-weight:400; }
   padding: 0 2px;
   transition: background 0.18s ease, box-shadow 0.18s ease;
 }
+.kw-term:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .kw-term:hover, .kw-term.is-active {
   background: rgba(230,126,34,0.3);
   box-shadow: 0 1px 0 rgba(230,126,34,0.6);

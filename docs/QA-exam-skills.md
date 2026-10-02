@@ -26,3 +26,9 @@ Actual Safari and physical devices remain unverified. Remaining work includes co
 Added 16 original guides, four per subject (focus IDs 2, 3, 4 and 6), bringing coverage to 36 / nine per subject. Manually checked each guide against its existing question, correct option and explanation. Covered absolute/relative references, COUNTIF/exact lookup, hexadecimal/unsigned values/image size/PC, reading evidence and opinion, fractional indices/quadratics/inequalities/inverse functions. Maths workings retain the actual numeric values and strict inequality. No question IDs, answers or progress schema changed.
 
 Validated all 36 canonical IDs and non-empty coaching fields, JavaScript syntax, duplicate IDs and glossary protections. Chrome exercised all 36 quiz explanations, mistake-book rendering, command-word persistence/backup and widths 375/390/430/768. Safari remains untested.
+
+## 2026-10-03 glossary interaction
+
+Glossary annotations are keyboard-focusable with visible focus rings and an aria-describedby relation to the tooltip while open. Focus opens the definition; Enter/Space toggles it and Escape dismisses it. Click/touch pins the definition, a second activation closes it, and outside clicks/scroll dismiss it. Keyword refresh on navigation or question rendering clears stale tooltips.
+
+Extended tests/glossary-browser.cjs with actual focus, keyboard, click and touch events, ARIA cleanup, refresh dismissal and four widths. Existing protected test-region/whole-word/repeat-scan checks, quiz/command-word integration and all 36 coaching renderers pass in Chrome. Safari and physical-device screen-reader behavior are untested.
