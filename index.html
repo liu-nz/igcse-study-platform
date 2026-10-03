@@ -296,7 +296,7 @@
                     <div class="page-header">
                         <div class="page-header-left">
                             <h3>复习资料<span class="bi-en">Revision Materials</span></h3>
-                            <p class="page-desc">管理你的讲义、笔记、真题等所有复习资料<span class="bi-en">Organise your notes, summaries, past papers and everything else in one place.</span></p>
+                            <p class="page-desc">搜索、标记并管理本机资料；附件保存在当前浏览器，不会上传云端。<span class="bi-en">Search and manage local study materials. Attachments stay in this browser and are not uploaded.</span></p>
                         </div>
                         <div class="page-header-right">
                             <select class="filter-select" id="material-subject-filter" onchange="renderMaterials()">
@@ -305,6 +305,7 @@
                             <button class="btn btn-primary" onclick="showUploadModal()">📤 上传资料 <span class="en-inline">Upload</span></button>
                         </div>
                     </div>
+                    <div class="material-tools"><label for="material-search">搜索资料 Search</label><input id="material-search" type="search" placeholder="名称、标签、文件名…" oninput="renderMaterials()"><label for="material-tag-filter">标签 Tag</label><select id="material-tag-filter" onchange="renderMaterials()"><option value="all">全部标签 All tags</option></select></div>
                     <div class="material-tabs">
                         <button class="material-tab active" data-type="all" onclick="filterMaterials('all')">全部 All</button>
                         <button class="material-tab" data-type="notes" onclick="filterMaterials('notes')">讲义笔记 Notes</button>
@@ -475,7 +476,7 @@
                     <div class="page-header">
                         <div class="page-header-left">
                             <h3>历年真题 (Past Papers)</h3>
-                            <p class="page-desc">近期试卷目录、官方真题与样卷；提供评分标准、听力及实操素材。<span class="bi-en">Recent paper directories, official papers and specimen papers, with mark schemes, listening and practical material.</span></p>
+                            <p class="page-desc">提供注明科目代码、年份、考季与卷号的官方资源及第三方目录。旧卷可能与当前考纲不同，开始前请核对考纲。<span class="bi-en">Official resources and clearly labelled third-party directories by syllabus code, year, session and paper. Older papers may differ from your syllabus; check it first.</span></p>
                         </div>
                     </div>
                     <div class="pastpaper-filters">
@@ -1024,12 +1025,12 @@
     <script src="js/data-keyunits.js?v=20261001-optbi1"></script>
     <script src="js/data-other.js?v=20261001-optbi1"></script>
     <script src="js/data-focus.js?v=20261001-exam2"></script>
-    <script src="js/data-resources.js?v=20261001-optbi1"></script>
+    <script src="js/data-resources.js?v=20261003-resources1"></script>
     <script src="js/data.js?v=20261001-optbi1"></script>
     <script src="js/glossary.js?v=20261003-access1"></script>
     <script src="js/data-options-i18n.js?v=20261001-optbi1"></script>
     <script src="js/data-exam-skills.js?v=20261003-coaching2"></script>
-    <script src="js/app.js?v=20261003-access1"></script>
+    <script src="js/app.js?v=20261003-resources3"></script>
     <script src="js/quiz-recovery.js?v=20261001-resume1"></script>
     <script src="js/exam-skills.js?v=20261001-exam1"></script>
     <script src="js/backup.js?v=20261001-exam2"></script>

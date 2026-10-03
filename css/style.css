@@ -2918,3 +2918,8 @@ body.dark-mode .opt-en-inline { color:#a9b6c4; }
 .exam-answer-guide { margin-top:16px; padding:14px; border-left:3px solid var(--primary); background:var(--bg); border-radius:var(--radius-sm); overflow-wrap:anywhere; }
 .exam-answer-guide p { margin:8px 0; line-height:1.7; }
 .exam-answer-guide small { color:var(--text-light); }
+
+.material-tools{display:grid;grid-template-columns:auto minmax(180px,1fr) auto minmax(150px,240px);align-items:center;gap:8px;margin:12px 0}
+.material-tools input,.material-tools select{min-width:0;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)}
+.material-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+@media(max-width:600px){.material-tools{grid-template-columns:1fr}.material-tools label{margin-top:4px}}

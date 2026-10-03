@@ -32,3 +32,9 @@ Validated all 36 canonical IDs and non-empty coaching fields, JavaScript syntax,
 Glossary annotations are keyboard-focusable with visible focus rings and an aria-describedby relation to the tooltip while open. Focus opens the definition; Enter/Space toggles it and Escape dismisses it. Click/touch pins the definition, a second activation closes it, and outside clicks/scroll dismiss it. Keyword refresh on navigation or question rendering clears stale tooltips.
 
 Extended tests/glossary-browser.cjs with actual focus, keyboard, click and touch events, ARIA cleanup, refresh dismissal and four widths. Existing protected test-region/whole-word/repeat-scan checks, quiz/command-word integration and all 36 coaching renderers pass in Chrome. Safari and physical-device screen-reader behavior are untested.
+
+## 2026-10-03 materials and paper resources
+
+Materials: client-side IndexedDB stores the selected file (up to 50 MB); localStorage stores its searchable metadata. Search covers name/subject/tags/filename, with exact tag filtering. User entries support rename/tag edit/delete; bundled entries remain read-only. PDF opens in a new tab; other types download. Local backup intentionally excludes binary files. Existing metadata-only uploads receive an explicit re-upload message. Actual browser upload, IndexedDB readback, filter, rename, delete and cleanup passed in Chrome.
+
+Past papers: displayed type is derived from manifest kind (official past paper, official specimen or third-party directory), season labels are correct for Feb/March, May/June, Oct/Nov and specimen, and the fixed 2026-09-30 timestamp was removed. All 60 distinct source/resource URLs in the manifest returned HTTP 200 from curl on 2026-10-03. Cambridge warns its past papers may not reflect the current syllabus; the page now directs learners to check the syllabus before using older papers.

@@ -462,32 +462,34 @@ function filterMaterials(type) {
 
 function renderMaterials() {
     const subjectFilter = document.getElementById('material-subject-filter')?.value || 'all';
-    let materials = appData.materials.map(m => m.id === 'mat001' ? MATERIALS_DATA.find(item => item.id === 'mat001') : m);
-    if (materialFilter !== 'all') materials = materials.filter(m => m.type === materialFilter);
-    if (subjectFilter !== 'all') materials = materials.filter(m => m.subject === subjectFilter);
-
-    const grid = document.getElementById('materials-grid');
-    if (materials.length === 0) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">暂无资料，点击上方按钮上传<span class="bi-en">No materials yet — use the upload button above.</span></div>';
-        return;
-    }
-    const typeNames = { notes: '讲义笔记', pastpaper: '历年真题', markscheme: '评分标准', summary: '考点总结', other: '其他' };
-    grid.innerHTML = materials.map(m => `
-        <div class="material-card" onclick="openMaterial('${escapeHtml(String(m.id))}')">
-            <div class="material-icon">${escapeHtml(m.icon || '📁')}</div>
-            <div class="material-name">${escapeHtml(m.name || '')}</div>
-            <div class="material-meta">
-                <span class="material-tag">${escapeHtml(m.subject || '')}</span>
-                <span class="material-tag">${escapeHtml(typeNames[m.type] || m.type || '')}</span>
-                ${(m.tags || []).map(t => `<span class="material-tag">${escapeHtml(t)}</span>`).join('')}
-            </div>
-            <div class="material-info">
-                <span>${escapeHtml(m.size || '')}</span>
-                <span>${escapeHtml(m.date || '')}</span>
-            </div>
-        </div>
-    `).join('');
+    const search = (document.getElementById('material-search')?.value || '').trim().toLowerCase();
+    const tagFilter = document.getElementById('material-tag-filter')?.value || 'all';
+    const all = appData.materials || [];
+    const tags = [...new Set(all.flatMap(m => Array.isArray(m.tags) ? m.tags : []))].sort((a,b)=>a.localeCompare(b));
+    const tagSelect = document.getElementById('material-tag-filter');
+    if(tagSelect){const current=tagSelect.value;tagSelect.replaceChildren(new Option('全部标签 All tags','all'),...tags.map(t=>new Option(t,t)));tagSelect.value=tags.includes(current)?current:'all';}
+    let materials = all.filter(m => {
+        const text=[m.name,m.subject,m.fileName,...(m.tags||[])].join(' ').toLowerCase();
+        return (materialFilter==='all'||m.type===materialFilter) && (subjectFilter==='all'||m.subject===subjectFilter) && (tagFilter==='all'||m.tags?.includes(tagFilter)) && (!search||text.includes(search));
+    });
+    const grid=document.getElementById('materials-grid');
+    if(!materials.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">没有匹配资料 No matching materials.</div>';return;}
+    const typeNames={notes:'讲义笔记',pastpaper:'历年真题',markscheme:'评分标准',summary:'考点总结',other:'其他'};
+    grid.innerHTML=materials.map(m=>{
+      const editable=!MATERIALS_DATA.some(item=>item.id===m.id);
+      return `<article class="material-card"><div class="material-icon">${escapeHtml(m.icon||'📁')}</div><div class="material-name">${escapeHtml(m.name||'')}</div><div class="material-meta"><span class="material-tag">${escapeHtml(m.subject||'')}</span><span class="material-tag">${escapeHtml(typeNames[m.type]||m.type||'')}</span>${(m.tags||[]).map(t=>`<span class="material-tag">${escapeHtml(t)}</span>`).join('')}</div><div class="material-info"><span>${escapeHtml(m.size||'')}</span><span>${escapeHtml(m.date||'')}</span></div><div class="material-actions"><button class="btn btn-outline btn-sm" onclick="openMaterial('${escapeHtml(String(m.id))}')">查看 View</button>${m.localFileStored?`<button class="btn btn-outline btn-sm" onclick="openLocalMaterial('${escapeHtml(String(m.id))}')">打开／下载 Open / download</button>`:''}${editable?`<button class="btn btn-outline btn-sm" onclick="renameMaterial('${escapeHtml(String(m.id))}')">改名 Rename</button><button class="btn btn-outline btn-sm" onclick="editMaterialTags('${escapeHtml(String(m.id))}')">编辑标签 Tags</button><button class="btn btn-outline btn-sm" onclick="deleteMaterial('${escapeHtml(String(m.id))}')">删除 Delete</button>`:''}</div></article>`;
+    }).join('');
 }
+
+function findUserMaterial(id){return (appData.materials||[]).find(m=>String(m.id)===String(id)&&!MATERIALS_DATA.some(x=>x.id===m.id));}
+function renameMaterial(id){const m=findUserMaterial(id);if(!m)return;const name=prompt('资料名称 Material name',m.name||'');if(name===null)return;if(!name.trim()){showToast('名称不能为空');return;}const old=m.name;m.name=name.trim();if(!saveData(appData)){m.name=old;return;}renderMaterials();}
+function editMaterialTags(id){const m=findUserMaterial(id);if(!m)return;const tags=prompt('输入标签，以逗号分隔 Tags, separated by commas',(m.tags||[]).join(', '));if(tags===null)return;const old=m.tags;m.tags=[...new Set(tags.split(',').map(t=>t.trim()).filter(Boolean))];if(!saveData(appData)){m.tags=old;return;}renderMaterials();}
+async function deleteMaterial(id){const m=findUserMaterial(id);if(!m||!confirm(`删除“${m.name}”及其本地附件？ Delete material and local file?`))return;appData.materials=appData.materials.filter(x=>x!==m);if(!saveData(appData)){appData.materials.push(m);return;}await removeMaterialBlob(id);renderMaterials();}
+
+function openMaterialDB(){return new Promise((resolve,reject)=>{if(typeof indexedDB==='undefined'){reject(Error('IndexedDB is unavailable'));return;}const req=indexedDB.open('igcse-study-materials',1);req.onupgradeneeded=()=>req.result.createObjectStore('files',{keyPath:'id'});req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+async function materialBlobAction(id,action){const db=await openMaterialDB();try{const row=await new Promise((resolve,reject)=>{const req=db.transaction('files').objectStore('files').get(String(id));req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});if(!row)throw Error('本地附件不存在，请重新上传');const url=URL.createObjectURL(row.file);if(action==='open'&&row.file.type==='application/pdf'){const tab=window.open(url,'_blank');if(tab)tab.opener=null;if(!tab){const a=document.createElement('a');a.href=url;a.download=row.fileName;a.click();}}else{const a=document.createElement('a');a.href=url;a.download=row.fileName;a.click();}setTimeout(()=>URL.revokeObjectURL(url),300000);}finally{db.close();}}
+function openLocalMaterial(id){materialBlobAction(id,'open').catch(e=>showToast(e.message||'无法打开本地文件'));}
+async function removeMaterialBlob(id){try{const db=await openMaterialDB();await new Promise(resolve=>{const req=db.transaction('files','readwrite').objectStore('files').delete(String(id));req.onsuccess=req.onerror=()=>resolve();});db.close();}catch(_){}}
 
 function openMaterial(id) {
     const allMaterials = [...MATERIALS_DATA, ...(appData.materials || [])];
@@ -508,6 +510,8 @@ function openMaterial(id) {
         let html = '<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.8;color:var(--text);margin:0;">' + escapeHtml(m.content) + '</pre>';
         if (m.en) html += '<div class="en-block" style="white-space:pre-wrap;font-size:13px;line-height:1.8;margin-top:14px;">' + escapeHtml(m.en) + '</div>';
         contentEl.innerHTML = html;
+    } else if(m.fileName && !m.localFileStored) {
+        contentEl.innerHTML = '<div class="empty-state">旧版本仅保存了资料索引，文件本体没有保存在浏览器中，请选择原文件重新上传。<span class="bi-en">This older record only contains metadata; its file was not stored in this browser. Re-upload the original file.</span></div>';
     } else {
         contentEl.innerHTML = '<div class="empty-state">该资料暂无详细内容，可在上传资料时添加内容描述。<span class="bi-en">No detailed content yet — add a description when uploading.</span></div>';
     }
@@ -549,7 +553,7 @@ function handleMaterialFileSelection(file) {
     }
 }
 
-function confirmUpload() {
+async function confirmUpload() {
     const fileInput = document.getElementById('file-input');
     const file = fileInput?.files?.[0];
     const name = document.getElementById('upload-name').value.trim();
@@ -567,24 +571,19 @@ function confirmUpload() {
     }
 
     const icons = { notes: '📖', pastpaper: '📄', markscheme: '✅', summary: '📋', other: '📁' };
-    appData.materials.push({
-        id: 'mat' + Date.now(),
-        name, subject, type, tags,
-        icon: icons[type] || '📁',
-        size: formatFileSize(file.size),
-        fileName: file.name,
-        mimeType: file.type || '',
-        localMetadataOnly: true,
-        date: getTodayStr(),
-    });
-    saveData(appData);
+    if(file.size>50*1024*1024){showToast('单个文件最大 50 MB / Maximum file size is 50 MB');return;}
+    const material={id:'mat'+Date.now(),name,subject,type,tags,icon:icons[type]||'📁',size:formatFileSize(file.size),fileName:file.name,mimeType:file.type||'',localFileStored:true,date:getTodayStr()};
+    try{const db=await openMaterialDB();try{await new Promise((resolve,reject)=>{const req=db.transaction('files','readwrite').objectStore('files').put({id:String(material.id),file,fileName:file.name});req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error);});}finally{db.close();}}
+    catch(error){showToast('浏览器未能保存附件，请检查本地存储空间；资料尚未添加');return;}
+    appData.materials.push(material);
+    if(!saveData(appData)){appData.materials.pop();await removeMaterialBlob(material.id);return;}
     closeModal('upload-modal');
     document.getElementById('upload-name').value = '';
     document.getElementById('upload-tags').value = '';
     fileInput.value = '';
     handleMaterialFileSelection(null);
     renderMaterials();
-    showToast('资料记录已保存；文件本体暂未上传云端 File metadata saved locally');
+    showToast('资料与附件已保存在本机浏览器；不会上传云端 Saved in this browser only');
 }
 
 // ========== 刷题模块 ==========
@@ -898,7 +897,7 @@ function renderPastPapers() {
     document.getElementById('syllabus-links').innerHTML = FOCUS_SOURCES.map(s => '<a target="_blank" rel="noopener noreferrer" href="'+s.url+'">'+(FOCUS_LABELS[s.subject] || s.subject)+' · '+s.years+' 考纲 ↗</a>').join('');
     const papers = PAPER_RESOURCES.filter(p => (subject === 'all' || p.subject === subject) && (year === 'all' || p.year === year) && (season === 'all' || p.season === season)).sort((a,b)=>Number(b.year)-Number(a.year));
     const list = document.getElementById('pastpapers-list');
-    list.innerHTML = papers.length ? papers.map(p => '<article class="pastpaper-item resource-card"><div class="pp-icon">📄</div><div class="pp-info"><div class="pp-title">'+(FOCUS_LABELS[p.subject] || p.subject)+' · '+p.paper+'</div><p class="pp-meta">'+p.year+' · '+(p.season === 'sp' ? '官方样卷 · 非历年真题' : 'May/June')+' · '+p.code+'</p><p class="page-desc">'+p.provider+' · 核对日期 2026-09-30</p><p class="page-desc">'+p.note+'</p><div class="resource-actions">'+p.links.map(l=>'<a class="btn btn-outline btn-sm" target="_blank" rel="noopener noreferrer" href="'+l.url+'">'+l.label+' ↗</a>').join('')+'<a target="_blank" rel="noopener noreferrer" href="'+p.source+'">来源页面 ↗</a></div></div></article>').join('') : '<div class="empty-state">没有匹配的已核对资源。可切换年份或考季查看；其他科目本轮未补充。</div>';
+    list.innerHTML = papers.length ? papers.map(p => '<article class="pastpaper-item resource-card"><div class="pp-icon">📄</div><div class="pp-info"><div class="pp-title">'+(FOCUS_LABELS[p.subject] || p.subject)+' · '+p.paper+'</div><p class="pp-meta">'+p.year+' · '+(p.kind==='specimen'?'官方样卷 · 非历年真题':p.kind==='directory'?'第三方目录 · 非本站真题':'官方历年真题')+' · '+({m:'Feb/March',s:'May/June',w:'Oct/Nov',sp:'Specimen'}[p.season]||'考季待确认')+' · '+p.code+'</p><p class="page-desc">'+p.provider+'</p><p class="page-desc">'+p.note+'</p><div class="resource-actions">'+p.links.map(l=>'<a class="btn btn-outline btn-sm" target="_blank" rel="noopener noreferrer" href="'+l.url+'">'+l.label+' ↗</a>').join('')+'<a target="_blank" rel="noopener noreferrer" href="'+p.source+'">来源页面 ↗</a></div></div></article>').join('') : '<div class="empty-state">没有匹配的已核对资源。可切换年份或考季查看；其他科目本轮未补充。</div>';
 }
 
 // ========== 智能复习 ==========
