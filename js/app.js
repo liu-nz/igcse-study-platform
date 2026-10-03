@@ -905,10 +905,20 @@ function renderPastPapers() {
     const subject = document.getElementById('pp-subject').value;
     const year = document.getElementById('pp-year').value;
     const season = document.getElementById('pp-season').value;
-    document.getElementById('syllabus-links').innerHTML = FOCUS_SOURCES.map(s => '<a target="_blank" rel="noopener noreferrer" href="'+s.url+'">'+(FOCUS_LABELS[s.subject] || s.subject)+' · '+s.years+' 考纲 ↗</a>').join('');
-    const papers = PAPER_RESOURCES.filter(p => (subject === 'all' || p.subject === subject) && (year === 'all' || p.year === year) && (season === 'all' || p.season === season)).sort((a,b)=>Number(b.year)-Number(a.year));
+    document.getElementById('syllabus-links').innerHTML = SYLLABUS_SOURCES.map(s => '<a target="_blank" rel="noopener noreferrer" href="'+s.url+'">'+(FOCUS_LABELS[s.subject] || s.subject)+' · '+s.years+' 考纲 ↗</a>').join('');
+    const papers = PAPER_RESOURCES.filter(p =>
+        (subject === 'all' || p.subject === subject) &&
+        (p.kind === 'official-index' || year === 'all' || p.year === year) &&
+        (p.kind === 'official-index' || season === 'all' || p.season === season)
+    ).sort((a, b) => a.kind === 'official-index' ? (b.kind === 'official-index' ? a.subject.localeCompare(b.subject) : 1) : b.kind === 'official-index' ? -1 : Number(b.year) - Number(a.year));
     const list = document.getElementById('pastpapers-list');
-    list.innerHTML = papers.length ? papers.map(p => '<article class="pastpaper-item resource-card"><div class="pp-icon">📄</div><div class="pp-info"><div class="pp-title">'+(FOCUS_LABELS[p.subject] || p.subject)+' · '+p.paper+'</div><p class="pp-meta">'+p.year+' · '+(p.kind==='specimen'?'官方样卷 · 非历年真题':p.kind==='directory'?'第三方目录 · 非本站真题':'官方历年真题')+' · '+({m:'Feb/March',s:'May/June',w:'Oct/Nov',sp:'Specimen'}[p.season]||'考季待确认')+' · '+p.code+'</p><p class="page-desc">'+p.provider+'</p><p class="page-desc">'+p.note+'</p><div class="resource-actions">'+p.links.map(l=>'<a class="btn btn-outline btn-sm" target="_blank" rel="noopener noreferrer" href="'+l.url+'">'+l.label+' ↗</a>').join('')+'<a target="_blank" rel="noopener noreferrer" href="'+p.source+'">来源页面 ↗</a></div></div></article>').join('') : '<div class="empty-state">没有匹配的已核对资源。可切换年份或考季查看；其他科目本轮未补充。</div>';
+    list.innerHTML = papers.length ? papers.map(p => {
+        const isIndex = p.kind === 'official-index';
+        const kindLabel = isIndex ? 'Cambridge 官方目录入口' : p.kind === 'specimen' ? '官方样卷 · 非历年真题' : p.kind === 'directory' ? '第三方目录 · 非本站真题' : '官方历年真题';
+        const yearLabel = isIndex ? '具体年份见官网' : p.year;
+        const seasonLabel = isIndex ? '具体考季见官网' : ({m:'Feb/March',s:'May/June',w:'Oct/Nov',sp:'Specimen'}[p.season] || '考季待确认');
+        return '<article class="pastpaper-item resource-card"><div class="pp-icon">📄</div><div class="pp-info"><div class="pp-title">'+(FOCUS_LABELS[p.subject] || p.subject)+' · '+p.paper+'</div><p class="pp-meta">'+yearLabel+' · '+kindLabel+' · '+seasonLabel+' · '+(isIndex ? 'Syllabus ' : '')+p.code+'</p><p class="page-desc">'+p.provider+'</p><p class="page-desc">'+p.note+'</p><div class="resource-actions">'+p.links.map(l=>'<a class="btn btn-outline btn-sm" target="_blank" rel="noopener noreferrer" href="'+l.url+'">'+l.label+' ↗</a>').join('')+'<a target="_blank" rel="noopener noreferrer" href="'+p.source+'">来源页面 ↗</a></div></div></article>';
+    }).join('') : '<div class="empty-state">没有匹配的已核对资源。请切换科目、年份或考季。</div>';
 }
 
 // ========== 智能复习 ==========

@@ -587,5 +587,61 @@ const PAPER_RESOURCES = [
       }
     ],
     "note": "0510 Speaking Endorsement；听力练习请配合音频与文本。"
+  },
+  {
+    "id": "0417-official-index", "subject": "ICT", "code": "0417", "year": "all", "season": "all", "kind": "official-index",
+    "paper": "官方历年真题、评分标准与样卷入口", "source": "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-information-and-communication-technology-0417/past-papers/",
+    "provider": "Cambridge International 官方",
+    "links": [{"label":"打开 Cambridge 官方资源页","url":"https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-information-and-communication-technology-0417/past-papers/"}],
+    "note": "官网只公开部分考试资料；请按考试年份核对考纲与 Paper 1/2/3。"
+  },
+  {
+    "id": "0478-official-index", "subject": "计算机科学", "code": "0478", "year": "all", "season": "all", "kind": "official-index",
+    "paper": "官方历年真题、评分标准与样卷入口", "source": "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-computer-science-0478/past-papers/",
+    "provider": "Cambridge International 官方",
+    "links": [{"label":"打开 Cambridge 官方资源页","url":"https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-computer-science-0478/past-papers/"}],
+    "note": "官网只公开部分考试资料；2029 起考纲有更新，请确认自己的考试年份。"
+  },
+  {
+    "id": "0510-official-index", "subject": "英语", "code": "0510", "year": "all", "season": "all", "kind": "official-index",
+    "paper": "官方历年真题、评分标准与样卷入口", "source": "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-english-second-language-oral-endorsement-0510/past-papers/",
+    "provider": "Cambridge International 官方",
+    "links": [{"label":"打开 Cambridge 官方资源页","url":"https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-english-second-language-oral-endorsement-0510/past-papers/"}],
+    "note": "0510 为 Speaking Endorsement；官网只公开部分考试资料。"
+  },
+  {
+    "id": "0580-official-index", "subject": "数学", "code": "0580", "year": "all", "season": "all", "kind": "official-index",
+    "paper": "官方历年真题、评分标准与样卷入口", "source": "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-mathematics-0580/past-papers/",
+    "provider": "Cambridge International 官方",
+    "links": [{"label":"打开 Cambridge 官方资源页","url":"https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-mathematics-0580/past-papers/"}],
+    "note": "官网只公开部分考试资料；本站具体列出的 Mathematics 试卷为 Extended。"
+  },
+  {
+    "id": "0625-official-index", "subject": "物理", "code": "0625", "year": "all", "season": "all", "kind": "official-index",
+    "paper": "官方历年真题、评分标准与样卷入口", "source": "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-physics-0625/past-papers/",
+    "provider": "Cambridge International 官方",
+    "links": [{"label":"打开 Cambridge 官方资源页","url":"https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-physics-0625/past-papers/"}],
+    "note": "官网只公开部分考试资料；请按考试年份核对 Core/Extended 考纲与卷型。"
+  },
+  {
+    "id": "0620-official-index", "subject": "化学", "code": "0620", "year": "all", "season": "all", "kind": "official-index",
+    "paper": "官方历年真题、评分标准与样卷入口", "source": "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-chemistry-0620/past-papers/",
+    "provider": "Cambridge International 官方",
+    "links": [{"label":"打开 Cambridge 官方资源页","url":"https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-chemistry-0620/past-papers/"}],
+    "note": "官网只公开部分考试资料；请按考试年份核对 Core/Extended 考纲与卷型。"
+  },
+  {
+    "id": "0610-official-index", "subject": "生物", "code": "0610", "year": "all", "season": "all", "kind": "official-index",
+    "paper": "官方历年真题、评分标准与样卷入口", "source": "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-biology-0610/past-papers/",
+    "provider": "Cambridge International 官方",
+    "links": [{"label":"打开 Cambridge 官方资源页","url":"https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-biology-0610/past-papers/"}],
+    "note": "官网只公开部分考试资料；请按考试年份核对 Core/Extended 考纲与卷型。"
+  },
+  {
+    "id": "0455-official-index", "subject": "经济", "code": "0455", "year": "all", "season": "all", "kind": "official-index",
+    "paper": "官方历年真题、评分标准与样卷入口", "source": "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-economics-0455/past-papers/",
+    "provider": "Cambridge International 官方",
+    "links": [{"label":"打开 Cambridge 官方资源页","url":"https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-economics-0455/past-papers/"}],
+    "note": "官网只公开部分考试资料；2027 起试卷结构变化，请核对对应考纲。"
   }
 ];
