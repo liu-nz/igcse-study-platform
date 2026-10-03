@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IGCSE 智能备考平台 · IGCSE Smart Revision Platform</title>
-    <link rel="stylesheet" href="css/style.css?v=20261003-access1">
+    <link rel="stylesheet" href="css/style.css?v=20261003-nav1">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
 </head>
 <body>
@@ -97,18 +97,19 @@
                 </div>
             </div>
             <nav class="sidebar-nav">
+                <span class="nav-section-label" aria-hidden="true">Study · 学习</span>
                 <a class="nav-item active" data-page="dashboard">
                     <span class="nav-icon">🏠</span><span class="nav-text">首页仪表盘<span class="nav-en">Dashboard</span></span>
-                </a>
-                <a class="nav-item" data-page="materials">
-                    <span class="nav-icon">📚</span><span class="nav-text">资料中心<span class="nav-en">Materials</span></span>
                 </a>
                 <a class="nav-item" data-page="quiz">
                     <span class="nav-icon">✏️</span><span class="nav-text">题库刷题<span class="nav-en">Practice</span></span>
                 </a>
-                <a class="nav-item" data-page="pastpapers">
-                    <span class="nav-icon">📋</span><span class="nav-text">历年真题<span class="nav-en">Past Papers</span></span>
+                <a class="nav-item" data-page="commands" role="button" tabindex="0"><span class="nav-icon">📝</span><span class="nav-text">考试指令词<span class="nav-en">Command Words</span></span></a>
+                <a class="nav-item" data-page="aichat">
+                    <span class="nav-icon">🤖</span><span class="nav-text">学习助手<span class="nav-en">Study Assistant</span></span>
                 </a>
+
+                <span class="nav-section-label" aria-hidden="true">Memory · 记忆</span>
                 <a class="nav-item" data-page="review">
                     <span class="nav-icon">🔄</span><span class="nav-text">智能复习<span class="nav-en">Smart Review</span></span>
                     <span class="nav-badge" id="review-badge">0</span>
@@ -120,7 +121,6 @@
                 <a class="nav-item" data-page="mustknow">
                     <span class="nav-icon">⭐</span><span class="nav-text">必考点<span class="nav-en">Must-Know</span></span>
                 </a>
-                <a class="nav-item" data-page="commands" role="button" tabindex="0"><span class="nav-icon">📝</span><span class="nav-text">考试指令词<span class="nav-en">Command Words</span></span></a>
                 <a class="nav-item" data-page="keyunits">
                     <span class="nav-icon">📚</span><span class="nav-text">重点单元<span class="nav-en">Key Units</span></span>
                 </a>
@@ -128,15 +128,24 @@
                     <span class="nav-icon">❌</span><span class="nav-text">错题本<span class="nav-en">Mistake Book</span></span>
                     <span class="nav-badge red" id="wrong-badge">0</span>
                 </a>
-                <a class="nav-item" data-page="aichat">
-                    <span class="nav-icon">🤖</span><span class="nav-text">学习助手<span class="nav-en">Study Assistant</span></span>
+
+                <span class="nav-section-label" aria-hidden="true">Resources · 资料</span>
+                <a class="nav-item" data-page="materials">
+                    <span class="nav-icon">📚</span><span class="nav-text">资料中心<span class="nav-en">Materials</span></span>
                 </a>
+                <a class="nav-item" data-page="pastpapers">
+                    <span class="nav-icon">📋</span><span class="nav-text">历年真题<span class="nav-en">Past Papers</span></span>
+                </a>
+
+                <span class="nav-section-label" aria-hidden="true">Progress · 进度</span>
                 <a class="nav-item" data-page="analytics">
                     <span class="nav-icon">📊</span><span class="nav-text">学习分析<span class="nav-en">Analytics</span></span>
                 </a>
                 <a class="nav-item" data-page="members">
                     <span class="nav-icon">👥</span><span class="nav-text">成员管理<span class="nav-en">Members</span></span>
                 </a>
+
+                <span class="nav-section-label" aria-hidden="true">Settings · 设置</span>
                 <a class="nav-item" data-page="settings">
                     <span class="nav-icon">⚙️</span><span class="nav-text">设置<span class="nav-en">Settings</span></span>
                 </a>
