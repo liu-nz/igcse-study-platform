@@ -39,6 +39,11 @@ function loadData() {
 }
 
 function saveData(data) {
+    if (typeof hasOtherActiveQuiz === 'function' && hasOtherActiveQuiz()) {
+        document.getElementById('storage-save-warning')?.classList.remove('hidden');
+        showToast('另一标签页正在刷题；为保护其进度，本页暂不保存。请稍后重试。');
+        return false;
+    }
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         document.getElementById('storage-save-warning')?.classList.add('hidden');
@@ -617,10 +622,13 @@ function startQuiz(mode, topicOverride = null) {
     if (questions.length === 0) { showToast('没有符合条件的题目'); return; }
     if (count > 0 && count < questions.length) questions = questions.slice(0, count);
 
+    if (hasOtherActiveQuiz()) { showToast('此身份正在另一个标签页刷题。请先在那里完成或暂停。'); return; }
     if (!prepareNewQuiz()) return;
     clearInterval(quizState.timerInterval);
+    const quizId = 'quiz-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2));
+    if(!claimQuizLock(quizId))return;
     quizState = {
-        id: 'quiz-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2)),
+        id: quizId,
         draftSelections: new Array(questions.length).fill(null),
         questions,
         currentIndex: 0,
@@ -733,6 +741,7 @@ function renderQuestion() {
 }
 
 function selectOption(index) {
+    if (quizConflicted) return;
     if (quizState.submitted) return;
     quizState.selectedOption = index;
     quizState.draftSelections ||= new Array(quizState.questions.length).fill(null);
@@ -744,6 +753,7 @@ function selectOption(index) {
 }
 
 function submitAnswer() {
+    if (quizConflicted) return;
     if (quizState.submitted) return;
     if (quizState.selectedOption === null) { showToast('请先选择一个答案'); return; }
     quizState.answers[quizState.currentIndex] = quizState.selectedOption;
@@ -795,7 +805,7 @@ function nextQuestion() {
 }
 
 function finishQuiz() {
-    if (quizState.finished) return;
+    if (quizConflicted || quizState.finished) return;
     quizState.finished = true;
     if (quizState.startTime) {
         quizState.elapsedSeconds = Math.max(0, Math.floor((Date.now() - quizState.startTime) / 1000));

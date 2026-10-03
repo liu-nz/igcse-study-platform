@@ -1,4 +1,31 @@
-/* One browser-local unfinished quiz per local identity; never exported in backups. */
+/* One active quiz tab per local identity; unfinished drafts stay in this browser. */
+const QUIZ_LOCK_PREFIX = 'igcse:active-quiz:';
+const QUIZ_LOCK_TTL = 30000;
+const QUIZ_TAB_ID = globalThis.crypto?.randomUUID?.() || Date.now()+'-'+Math.random().toString(36).slice(2);
+let activeQuizLock = null;
+let quizConflicted = false;
+function quizLockKey(owner=quizOwnerKey()){return owner?QUIZ_LOCK_PREFIX+owner:null;}
+function readQuizLock(owner=quizOwnerKey()){try{return JSON.parse(localStorage.getItem(quizLockKey(owner))||'null')}catch(_){return null}}
+function claimQuizLock(sessionId){
+    const key=quizLockKey(), prior=readQuizLock();
+    if(!key)return false;
+    if(prior&&prior.expiresAt>Date.now()&&prior.tabId!==QUIZ_TAB_ID){showToast('此身份正在另一个标签页刷题。请先在那里完成或暂停。This identity is practising in another tab.');return false;}
+    const lock={tabId:QUIZ_TAB_ID,sessionId,expiresAt:Date.now()+QUIZ_LOCK_TTL};
+    try{localStorage.setItem(key,JSON.stringify(lock));}catch(_){showToast('无法协调多个标签页，请允许本机存储或关闭其他练习页');return false;}
+    if(readQuizLock()?.tabId!==QUIZ_TAB_ID){showToast('另一个标签页已开始练习，请在那里继续。');return false;}
+    activeQuizLock=lock;quizConflicted=false;document.getElementById('quiz-conflict-warning')?.classList.add('hidden');return true;
+}
+function renewQuizLock(){if(!activeQuizLock||quizConflicted)return;const key=quizLockKey(),lock=readQuizLock();if(lock?.tabId!==QUIZ_TAB_ID||lock.sessionId!==activeQuizLock.sessionId){loseQuizLock();return;}activeQuizLock.expiresAt=Date.now()+QUIZ_LOCK_TTL;try{localStorage.setItem(key,JSON.stringify(activeQuizLock));}catch(_){loseQuizLock();}}
+function releaseQuizLock(){if(!activeQuizLock)return;const key=quizLockKey(),lock=readQuizLock();if(lock?.tabId===QUIZ_TAB_ID&&lock.sessionId===activeQuizLock.sessionId){try{localStorage.removeItem(key)}catch(_){}}activeQuizLock=null;}
+function loseQuizLock(){if(quizConflicted)return;quizConflicted=true;activeQuizLock=null;quizState.startTime=null;clearInterval(quizState.timerInterval);quizState.timerInterval=null;document.getElementById('quiz-conflict-warning')?.classList.remove('hidden');}
+function hasOtherActiveQuiz(){const lock=readQuizLock();return Boolean(lock&&lock.expiresAt>Date.now()&&lock.tabId!==QUIZ_TAB_ID);}
+window.addEventListener('storage',event=>{
+    if(event.key===STORAGE_KEY&&event.newValue&&(!activeQuizLock||quizState.finished)){
+        try{const latest=JSON.parse(event.newValue),identity=u=>u?.role==='guest'?'guest:'+u.name:u?.email||u?.name;if(identity(latest.currentUser)===identity(currentUser)){appData=latest;if(currentPage==='quiz')renderQuizRecovery();}}catch(_){}
+    }
+    const owner=quizOwnerKey();if(!owner||event.key!==quizLockKey(owner)||!activeQuizLock)return;
+    const lock=readQuizLock(owner);if(lock&&lock.expiresAt>Date.now()&&lock.tabId!==QUIZ_TAB_ID)loseQuizLock();
+});
 function quizOwnerKey() {
     if (!currentUser) return null;
     return 'owner:' + encodeURIComponent(currentUser.role === 'guest' ? 'guest:' + currentUser.name : currentUser.email || currentUser.name);
@@ -21,7 +48,7 @@ function getQuizDraft() {
 }
 function persistQuizDraft() {
     const key = quizOwnerKey();
-    if (!key || !quizState.questions.length || quizState.finished) return;
+    if (!key || !quizState.questions.length || quizState.finished || quizConflicted) return;
     appData.quizDrafts ||= {};
     const elapsedSeconds = quizState.startTime ? Math.max(quizState.elapsedSeconds, Math.floor((Date.now()-quizState.startTime)/1000)) : quizState.elapsedSeconds;
     appData.quizDrafts[key] = {
@@ -36,7 +63,7 @@ function pauseQuizSession() {
     if (quizState.startTime) quizState.elapsedSeconds = Math.max(quizState.elapsedSeconds, Math.floor((Date.now()-quizState.startTime)/1000));
     quizState.startTime = null;
     clearInterval(quizState.timerInterval); quizState.timerInterval = null;
-    persistQuizDraft(); saveData(appData);
+    if(!quizConflicted){persistQuizDraft();saveData(appData);releaseQuizLock();}
 }
 function renderQuizRecovery() {
     const panel = document.getElementById('quiz-recovery');
@@ -54,6 +81,7 @@ function resumeQuizSession() {
     const draft = getQuizDraft();
     const questions = validateQuizDraft(draft);
     if (!questions) { showToast('无法恢复此草稿，请查看提示'); return; }
+    if(!claimQuizLock(draft.id))return;
     clearInterval(quizState.timerInterval);
     quizState = { id:draft.id, questions, answers:[...draft.answers], draftSelections:[...draft.selections], currentIndex:draft.currentIndex, elapsedSeconds:draft.elapsedSeconds, startTime:null, timerInterval:null, selectedOption:null, submitted:false, finished:false };
     document.getElementById('quiz-setup').classList.add('hidden');
@@ -67,6 +95,7 @@ function prepareNewQuiz() {
     return true;
 }
 function clearQuizDraft() {
+    releaseQuizLock();
     const key = quizOwnerKey();
     if (key && appData.quizDrafts) delete appData.quizDrafts[key];
 }
@@ -78,5 +107,6 @@ window.addEventListener('pagehide', () => { if (currentPage === 'quiz') pauseQui
 document.addEventListener('visibilitychange', () => {
     if (currentPage !== 'quiz' || quizState.finished || document.getElementById('quiz-playing').classList.contains('hidden')) return;
     if (document.hidden) pauseQuizSession();
+    else if(!quizConflicted && currentPage==='quiz' && !document.getElementById('quiz-playing').classList.contains('hidden')) { if(claimQuizLock(quizState.id))startQuizTimer();else loseQuizLock(); }
     else startQuizTimer();
 });

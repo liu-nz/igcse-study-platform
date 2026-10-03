@@ -52,3 +52,8 @@ Added the final 28 guides, IDs 12, 14, 15, 16, 18, 19 and 20 for each subject. A
 ## Complete command-word exercise coverage
 
 Added original practice items for Contrast, Identify, Describe, Evaluate, Outline and Suggest. All 14 listed command words now have an answer-shape exercise; each target is distinct and carries a contextual reason. Automated data checks verify every command word has exactly one or more valid exercises.
+
+
+## 2026-10-03 multi-tab quiz safety
+
+A per-identity localStorage lease allows one active quiz tab, renewed every 10 seconds and expiring after 30 seconds without renewal. Starting or resuming elsewhere is refused while the lease is active. Pausing/completing releases it; an already active tab losing the lease stops its timer, blocks answers and saves, and shows a warning. Idle same-identity tabs refresh persisted state from storage events; while another tab owns an active quiz, writes from the idle tab are refused so they cannot overwrite the running quiz. Browser-tested two shared-context tabs for exclusion, pause/release, draft recovery and state refresh. Hard crashes can delay access by at most the 30-second lease; Safari storage-event behaviour remains untested.
