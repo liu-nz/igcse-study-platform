@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IGCSE 智能备考平台 · IGCSE Smart Revision Platform</title>
-    <link rel="stylesheet" href="css/style.css?v=20261003-localtools1">
+    <link rel="stylesheet" href="css/style.css?v=20261003-localprofiles1">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
 </head>
 <body>
@@ -14,9 +14,10 @@
             <div class="login-brand">
                 <div class="login-logo">📚</div>
                 <h1>IGCSE 智能备考平台<span class="bi-en">IGCSE Smart Revision Platform</span></h1>
-                <p class="login-subtitle">智能复习 · 刷题 · 问答 · 全方位辅助备考<span class="bi-en">Smart revision · Practice · Q&amp;A · All-in-one exam prep</span></p>
+                <p class="login-subtitle">专为中文母语者设计的 IGCSE 双语备考工具<span class="bi-en">Bilingual IGCSE revision for Chinese-speaking students</span></p>
             </div>
             <div class="login-box">
+                <p class="login-tip local-account-notice">🔒 本地学习档案只保存在此浏览器。没有邮箱验证或密码找回；它不是安全登录。换设备前请导出学习备份。<span class="bi-en">Local profiles stay in this browser. There is no email verification or password recovery, and this is not secure authentication. Export a study backup before changing devices.</span></p>
                 <div class="login-tabs">
                     <button class="login-tab active" data-tab="login">登录<span class="bi-en">Login</span></button>
                     <button class="login-tab" data-tab="register">注册<span class="bi-en">Register</span></button>
@@ -24,33 +25,24 @@
                 </div>
                 <div id="login-form" class="login-form active">
                     <div class="form-group">
-                        <label>邮箱 / 用户名 <span class="en-inline">Email / Username</span></label>
-                        <input type="text" id="login-email" placeholder="请输入邮箱或用户名 Enter email or username">
+                        <label>用户名（旧账号也可用原邮箱）<span class="en-inline">Username (legacy accounts can use their email)</span></label>
+                        <input type="text" id="login-username" autocomplete="username" placeholder="请输入用户名 Enter username">
                     </div>
                     <div class="form-group">
                         <label>密码 <span class="en-inline">Password</span></label>
-                        <input type="password" id="login-password" placeholder="请输入密码 Enter your password">
+                        <input type="password" id="login-password" autocomplete="current-password" placeholder="请输入本机密码 Enter your local password">
                     </div>
                     <button class="btn btn-primary btn-block" onclick="handleLogin()">登 录 <span class="en-inline">Log in</span></button>
-                    <p class="login-tip">💡 已有账号请直接登录，新用户请点击上方「注册」<span class="bi-en">Already registered? Log in. New here? Tap Register above.</span></p>
+                    <p class="login-tip">学习记录只保存在当前浏览器。需要转移时，请登录后在设置中导出备份。<span class="bi-en">Study data stays in this browser. To transfer it, sign in and export a backup from Settings.</span></p>
                 </div>
                 <div id="register-form" class="login-form">
-                    <p class="login-tip" style="margin-bottom:12px;">🔐 注册协作者账号需填写邀请码<span class="bi-en">An invite code is required for collaborator accounts.</span></p>
                     <div class="form-group">
-                        <label>昵称 <span class="en-inline">Nickname</span></label>
-                        <input type="text" id="reg-name" placeholder="给自己起个昵称 Choose a nickname">
-                    </div>
-                    <div class="form-group">
-                        <label>邮箱 <span class="en-inline">Email</span></label>
-                        <input type="email" id="reg-email" placeholder="请输入邮箱 Enter your email">
+                        <label>用户名 <span class="en-inline">Username</span></label>
+                        <input type="text" id="reg-username" autocomplete="username" maxlength="60" placeholder="选择一个本机用户名 Choose a local username">
                     </div>
                     <div class="form-group">
                         <label>密码 <span class="en-inline">Password</span></label>
-                        <input type="password" id="reg-password" placeholder="设置密码 Set a password">
-                    </div>
-                    <div class="form-group">
-                        <label>邀请码 Invite Code</label>
-                        <input type="text" id="reg-invite-code" placeholder="请输入邀请码 Enter the invite code">
+                        <input type="password" id="reg-password" autocomplete="new-password" placeholder="设置本机密码 Set a local password">
                     </div>
                     <div class="form-group">
                         <label>目标考试局 <span class="en-inline">Exam board</span></label>
@@ -64,22 +56,28 @@
                 </div>
                 <div id="guest-form" class="login-form">
                     <div class="form-group">
-                        <label>访问密码 <span class="en-inline">Access code</span></label>
-                        <input type="password" id="guest-code" placeholder="请输入站点访问密码 Enter the site access code">
-                    </div>
-                    <div class="form-group">
                         <label>访客昵称（可选）<span class="en-inline">Guest name (optional)</span></label>
                         <input type="text" id="guest-name" placeholder="输入你的昵称 Enter your name">
                     </div>
                     <button class="btn btn-outline btn-block" onclick="handleGuestLogin()">以访客身份进入 <span class="en-inline">Continue as guest</span></button>
-                    <p class="login-tip">🔑 访客无需注册，输入访问密码即可浏览<span class="bi-en">No sign-up needed — just enter the access code to browse.</span></p>
+                    <p class="login-tip">无需注册或密码即可开始。访客进度保存在此浏览器的访客档案中。<span class="bi-en">Start without an account or password. Guest progress stays in this browser's guest profile.</span></p>
+                </div>
+            </div>
+            <div id="legacy-migration" class="login-box hidden" role="dialog" aria-modal="true" aria-labelledby="legacy-migration-title">
+                <h2 id="legacy-migration-title">选择旧进度归属 Select a profile for old progress</h2>
+                <p class="login-tip">旧版本没有区分本地账号。请选择接收现有学习记录的档案；其他档案会从空白进度开始。<span class="bi-en">The previous version shared study data across accounts. Choose which local profile receives it; other profiles start with fresh progress.</span></p>
+                <label for="legacy-migration-profile">接收档案 Profile</label>
+                <select id="legacy-migration-profile"></select>
+                <div class="study-api-actions">
+                    <button class="btn btn-primary" type="button" onclick="confirmLegacyMigration()">迁移并继续 Migrate and continue</button>
+                    <button class="btn btn-outline" type="button" onclick="cancelLegacyMigration()">取消 Cancel</button>
                 </div>
             </div>
             <div class="login-features">
                 <div class="feature-item"><span>📝</span>历年真题刷题<span class="bi-en">Past paper practice</span></div>
                 <div class="feature-item"><span>🔄</span>智能间隔复习<span class="bi-en">Spaced repetition</span></div>
                 <div class="feature-item"><span>🤖</span>本地学习助手<span class="bi-en">Study Assistant</span></div>
-                <div class="feature-item"><span>👥</span>好友协作学习<span class="bi-en">Study with friends</span></div>
+                <div class="feature-item"><span>📦</span>本地备份迁移<span class="bi-en">Local backup and transfer</span></div>
             </div>
         </div>
     </div>
@@ -141,10 +139,6 @@
                 <a class="nav-item" data-page="analytics">
                     <span class="nav-icon">📊</span><span class="nav-text">学习分析<span class="nav-en">Analytics</span></span>
                 </a>
-                <a class="nav-item" data-page="members">
-                    <span class="nav-icon">👥</span><span class="nav-text">成员管理<span class="nav-en">Members</span></span>
-                </a>
-
                 <span class="nav-section-label" aria-hidden="true">Settings · 设置</span>
                 <a class="nav-item" data-page="settings">
                     <span class="nav-icon">⚙️</span><span class="nav-text">设置<span class="nav-en">Settings</span></span>
@@ -152,10 +146,10 @@
             </nav>
             <div class="sidebar-footer">
                 <div class="user-info">
-                    <div class="user-avatar" id="user-avatar">D</div>
+                <div class="user-avatar" id="user-avatar">S</div>
                     <div class="user-detail">
-                        <span class="user-name" id="user-name">Demo</span>
-                        <span class="user-role" id="user-role">所有者<span class="nav-en">Owner</span></span>
+                        <span class="user-name" id="user-name">Student</span>
+                        <span class="user-role" id="user-role">本机学习档案<span class="nav-en">Local profile</span></span>
                     </div>
                 </div>
                 <button class="logout-btn" onclick="handleLogout()">退出<span class="nav-en">Log out</span></button>
@@ -715,56 +709,6 @@
                     </div>
                 </section>
 
-                <!-- 成员管理 -->
-                <section id="page-members" class="page">
-                    <div class="page-header">
-                        <div class="page-header-left">
-                            <h3>成员管理<span class="bi-en">Members</span></h3>
-                            <p class="page-desc">邀请好友一起备考，管理访问权限<span class="bi-en">Invite friends to revise together and manage their access.</span></p>
-                        </div>
-                    </div>
-                    <div class="share-section">
-                        <div class="share-card">
-                            <h4>🔗 邀请链接<span class="bi-en">Invite link</span></h4>
-                            <p>分享链接给好友，点击即可加入你的备考空间<span class="bi-en">Share this link — friends can join your revision space with one click.</span></p>
-                            <div class="share-link-box">
-                                <input type="text" id="invite-link" readonly value="https://liu-nz.github.io/igcse-study-platform/">
-                                <button class="btn btn-primary btn-sm" onclick="copyInviteLink()">复制 <span class="en-inline">Copy</span></button>
-                            </div>
-                            <div class="share-config">
-                                <label>链接有效期：Valid for:
-                                    <select>
-                                        <option>7 天 7 days</option>
-                                        <option>30 天 30 days</option>
-                                        <option>永久 Never expires</option>
-                                    </select>
-                                </label>
-                                <label>加入后角色：Role after joining:
-                                    <select>
-                                        <option>协作者 Collaborator</option>
-                                        <option>只读访客 Read-only guest</option>
-                                    </select>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="share-card">
-                            <h4>🔑 访问密码<span class="bi-en">Access code</span></h4>
-                            <p>好友输入密码即可访问站点<span class="bi-en">Friends can enter this code to access the site.</span></p>
-                            <div class="share-link-box">
-                                <input type="text" id="access-code" readonly value="guest123">
-                                <button class="btn btn-outline btn-sm" onclick="regenerateCode()">重新生成 <span class="en-inline">Regenerate</span></button>
-                            </div>
-                            <p class="share-tip">当前密码对应权限：只读访客<span class="bi-en">Current code grants: read-only guest.</span></p>
-                        </div>
-                    </div>
-                    <div class="members-list-section">
-                        <h4>👥 成员列表<span class="bi-en">Member list</span></h4>
-                        <p class="page-desc" id="members-tip"></p>
-                        <div class="lb-summary" id="members-counts"></div>
-                        <div id="members-list" class="members-list"></div>
-                    </div>
-                </section>
-
                 <section id="page-commands" class="page">
                     <div class="page-header"><div><h3>读懂要求，再作答 · Command Words</h3><p class="page-desc">先看指令词，再圈出情境、对象与限制。中文帮助理解，英文保留考试用语。<span class="bi-en">Read the instruction, context and constraints before answering.</span></p></div></div>
                     <p class="page-desc">说明参考 Cambridge 官方指令词与 Math 0580 考纲；本站例题和英文表达均为原创教学示例，不是官方真题或评分标准。具体要求随科目、题目与分值而变。<span class="bi-en">Original teaching examples, not official papers or mark schemes. Apply each command in its subject and question context.</span></p>
@@ -844,10 +788,11 @@
                     </div>
                     <div class="settings-section">
                         <h4>💾 数据管理<span class="bi-en">Data</span></h4>
+                        <p class="page-desc">登录与注册只用于切换此浏览器里的本地学习档案；密码不提供安全保护，也无法找回。换设备前导出备份，在新设备创建或进入档案后再导入。<span class="bi-en">Sign-in and registration only switch local profiles in this browser. Passwords do not secure or recover your data. Before changing devices, export a backup, then create or enter a profile on the new device and import it.</span></p>
                         <div class="setting-item">
                             <div class="setting-info">
                                 <span class="setting-label">导出学习数据<span class="bi-en">Export study data</span></span>
-                                <span class="setting-desc">导出练习、错题、SRS、闪卡、资料索引与当前用户默写与指令词进度；不含账号、成员或 API 凭据。资料文件本体不包含在内。<span class="bi-en">Includes practice, mistakes, SRS, flashcards, local material metadata and current-user recall and command-word progress. No accounts, member records or API credentials.</span></span>
+                                <span class="setting-desc">导出当前本地档案的练习、错题、SRS、闪卡、资料索引、默写与指令词进度；不含账号密码或 API 凭据。资料文件本体不包含在内。<span class="bi-en">Includes this local profile’s practice, mistakes, SRS, flashcards, materials, recall and command-word progress. No account passwords or API credentials.</span></span>
                             </div>
                             <button class="btn btn-outline btn-sm" onclick="exportData()">导出 <span class="en-inline">Export</span></button>
                         </div>
@@ -860,7 +805,7 @@
                         </div>
                         <div class="backup-import">
                             <label for="backup-file" class="setting-label">导入本机备份 Import a local backup</label>
-                            <p class="page-desc">选择 JSON 学习数据备份或完整 ZIP 备份，先预览再合并。完整 ZIP 会恢复本机附件；现有错题、SRS、资料及账号保留，不会覆盖本机同 ID 文件。附件最多 90 MB，完整备份最多 100 MB。<span class="bi-en">Preview and merge a JSON study backup or full ZIP backup. ZIP restores local attachments. Existing mistakes, SRS, materials and accounts are kept; same-ID local files are not overwritten. Attachments: 90 MB max; archive: 100 MB max.</span></p>
+                            <p class="page-desc">选择 JSON 学习数据备份或完整 ZIP 备份，先预览再合并。完整 ZIP 会恢复本机附件；备份只合并到当前本地档案；账号密码不会导入，也不会覆盖本机同 ID 文件。附件最多 90 MB，完整备份最多 100 MB。<span class="bi-en">Preview and merge a JSON study backup or full ZIP backup. ZIP restores local attachments. The backup merges into the current local profile; account passwords are not imported, and same-ID local files are not overwritten. Attachments: 90 MB max; archive: 100 MB max.</span></p>
                             <input type="file" id="backup-file" accept=".json,.zip,application/json,application/zip" onchange="previewBackupImport(this.files[0])">
                             <p id="backup-preview" class="page-desc" role="status" aria-live="polite"></p>
                             <button id="backup-confirm" class="btn btn-outline btn-sm" onclick="confirmBackupImport()" disabled>合并导入 Merge backup</button>
@@ -1064,11 +1009,11 @@
     <script src="js/glossary.js?v=20261003-context1"></script>
     <script src="js/data-options-i18n.js?v=20261001-optbi1"></script>
     <script src="js/data-exam-skills.js?v=20261003-mathesl4"></script>
-    <script src="js/app.js?v=20261003-localtools1"></script>
+    <script src="js/app.js?v=20261003-localprofiles1"></script>
     <script src="js/study-assistant-api.js?v=20261003-byo1"></script>
-    <script src="js/quiz-recovery.js?v=20261003-multitab1"></script>
+    <script src="js/quiz-recovery.js?v=20261003-localprofiles1"></script>
     <script src="js/exam-skills.js?v=20261001-exam1"></script>
     <script src="js/backup.js?v=20261003-fullbackup1"></script>
-    <script src="js/typing.js?v=20261001-optbi1"></script>
+    <script src="js/typing.js?v=20261003-localprofiles1"></script>
 </body>
 </html>
