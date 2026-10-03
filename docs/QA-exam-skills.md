@@ -57,3 +57,9 @@ Added original practice items for Contrast, Identify, Describe, Evaluate, Outlin
 ## 2026-10-03 multi-tab quiz safety
 
 A per-identity localStorage lease allows one active quiz tab, renewed every 10 seconds and expiring after 30 seconds without renewal. Starting or resuming elsewhere is refused while the lease is active. Pausing/completing releases it; an already active tab losing the lease stops its timer, blocks answers and saves, and shows a warning. Idle same-identity tabs refresh persisted state from storage events; while another tab owns an active quiz, writes from the idle tab are refused so they cannot overwrite the running quiz. Browser-tested two shared-context tabs for exclusion, pause/release, draft recovery and state refresh. Hard crashes can delay access by at most the 30-second lease; Safari storage-event behaviour remains untested.
+
+## 2026-10-03 Physics and Chemistry coaching
+
+Added bilingual answer guides to existing Physics 0625 questions p001–p015 and Chemistry 0620 questions c001–c015. Each guide links the canonical question ID and provides Chinese reasoning, English exam terms, an original answer model and a common pitfall; the full coaching total is now 110 of 217 questions. Corrected c003's explanation so low pH is not confused with strong-acid ionisation, and clarified the quantity-supplied/quantity-demanded wording in Economics e013. Existing question IDs and answer indices remain stable.
+
+Automated checks verify the 30 IDs exist in the correct subject bank and each guide has bilingual coaching fields. Browser QA checks quiz and mistake-book rendering for all 30, including the acid-strength distinction, across 375/390/430/768px widths.
