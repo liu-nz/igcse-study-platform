@@ -1,0 +1,22 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const elements=new Map();const get=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',classList:{toggle(){}}});return elements.get(id)};
+let request=null,reply={ok:true,status:200,json:async()=>({choices:[{message:{content:'中文解释 + English keywords'}}]})};
+const c=vm.createContext({console,URL,AbortController,setTimeout,clearTimeout,window:{addEventListener(){}},document:{getElementById:get},fetch:async(url,options)=>{request={url,options};return reply},generateAIResponse:q=>({answer:`local:${q}`,source:'local'})});
+vm.runInContext(fs.readFileSync('js/study-assistant-api.js','utf8'),c);
+const run=code=>vm.runInContext(code,c);
+assert.equal(run('isStudyAssistantApiConnected()'),false);
+get('study-api-endpoint').value='http://example.com/v1/chat/completions';get('study-api-model').value='test-model';get('study-api-key').value='secret-test-key';run('connectStudyAssistantApi()');
+assert.equal(run('isStudyAssistantApiConnected()'),false,'reject non-HTTPS remote endpoints');
+get('study-api-endpoint').value='https://provider.example/v1/chat/completions';get('study-api-key').value='secret-test-key';run('connectStudyAssistantApi()');
+assert.equal(run('isStudyAssistantApiConnected()'),true);assert.equal(get('study-api-key').value,'','clear key from DOM after connection');assert.match(get('study-api-status').textContent,/可能产生 API 费用/);
+(async()=>{
+ const result=await run("getStudyAssistantApiResponse('Explain osmosis')");
+ assert.equal(result.answer,'中文解释 + English keywords');assert.equal(result.source,'用户自带 API · test-model');
+ assert.equal(request.url,'https://provider.example/v1/chat/completions');assert.equal(request.options.headers.Authorization,'Bearer secret-test-key');
+ const body=JSON.parse(request.options.body);assert.equal(body.model,'test-model');assert.match(body.messages[0].content,/IGCSE/);assert.equal(body.messages[1].content,'Explain osmosis');
+ reply={ok:false,status:429,json:async()=>({error:{message:'rate limit'}})};await assert.rejects(run("getStudyAssistantApiResponse('retry')"),/rate limit/);
+ c.fetch=async()=>{throw new TypeError('blocked by CORS')};await assert.rejects(run("getStudyAssistantApiResponse('retry')"),/CORS/);
+ run('clearStudyAssistantApi()');assert.equal(run('isStudyAssistantApiConnected()'),false);assert.equal((await run("getStudyAssistantApiResponse('test')")).answer,'local:test');
+ get('study-api-endpoint').value='https://provider.example/v1/embeddings';get('study-api-key').value='secret';run('connectStudyAssistantApi()');assert.equal(run('isStudyAssistantApiConnected()'),false,'reject unsupported endpoint path');
+ console.log('BYO API default-off, HTTPS endpoint validation, in-memory key clearing, direct OpenAI-compatible request and local fallback: passed');
+})().catch(e=>{console.error(e);process.exitCode=1});

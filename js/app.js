@@ -1221,22 +1221,27 @@ function sendSuggestion(text) {
     sendChatMessage();
 }
 
-function sendChatMessage() {
+let chatRequestPending = false;
+async function sendChatMessage() {
+    if (chatRequestPending) return;
     const input = document.getElementById('chat-input');
     const text = input.value.trim();
     if (!text) return;
 
     addMessage('user', text);
     input.value = '';
-
-    // 显示打字动画
     const typingId = addTypingIndicator();
-
-    setTimeout(() => {
-        removeTypingIndicator(typingId);
-        const response = generateAIResponse(text);
-        addMessage('ai', response.answer, response.source);
-    }, 800 + Math.random() * 800);
+    chatRequestPending = true;
+    const sendButton=document.querySelector('.chat-send');if(sendButton)sendButton.disabled=true;
+    try {
+        const connected=typeof isStudyAssistantApiConnected==='function'&&isStudyAssistantApiConnected();
+        const response=connected
+            ? await getStudyAssistantApiResponse(text)
+            : await new Promise(resolve=>setTimeout(()=>resolve(generateAIResponse(text)),500));
+        removeTypingIndicator(typingId);addMessage('ai',response.answer,response.source);
+    } catch(error) {
+        removeTypingIndicator(typingId);addMessage('ai',`无法连接你提供的 API：${error.message}。已保留本地学习助手，可清除连接后继续使用。`,'自带 API 连接');
+    } finally { chatRequestPending=false;if(sendButton)sendButton.disabled=false; }
 }
 
 function addMessage(role, content, source) {

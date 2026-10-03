@@ -1,7 +1,71 @@
 /* Local-only portable backups. Import accepts a fixed schema, never accounts or credentials. */
 const BACKUP_MAX_BYTES = 5 * 1024 * 1024;
+const BACKUP_ARCHIVE_MAX_BYTES = 100 * 1024 * 1024;
+const BACKUP_ATTACHMENTS_MAX_BYTES = 90 * 1024 * 1024;
 let pendingBackup = null;
+let pendingBackupFiles = [];
 let backupPreviewVersion = 0;
+let backupImporting = false;
+const ZIP_CRC_TABLE=(()=>{const table=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xedb88320^(c>>>1)):(c>>>1);table[n]=c>>>0;}return table;})();
+
+function zipCrc32(bytes) {
+    let crc = 0xffffffff;
+    for (const byte of bytes) crc = ZIP_CRC_TABLE[(crc ^ byte) & 255] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+}
+function writeZipHeader(view, offset, signature, values) {
+    view.setUint32(offset, signature, true);
+    values.forEach(([at, size, value]) => size === 2 ? view.setUint16(offset + at, value, true) : view.setUint32(offset + at, value, true));
+}
+function createStoredZip(entries) {
+    if (entries.length > 5001) throw new Error('备份文件过多；请减少资料后重试 Too many files in backup');
+    const encoder = new TextEncoder(), localParts = [], centralParts = [];
+    let offset = 0, total = 0;
+    for (const entry of entries) {
+        const name = encoder.encode(entry.name), bytes = entry.bytes instanceof Uint8Array ? entry.bytes : new Uint8Array(entry.bytes);
+        if (!entry.name || !(entry.name==='manifest.json'||/^attachments\/[\w%.-]+--[\w%.-]+$/.test(entry.name)) || name.length > 1000 || bytes.length > BACKUP_ARCHIVE_MAX_BYTES) throw new Error('备份文件无效 Invalid archive entry');
+        total += bytes.length;
+        if (total > BACKUP_ARCHIVE_MAX_BYTES) throw new Error('完整备份超过 100 MB，请分批处理资料 Full backup exceeds 100 MB');
+        const crc = zipCrc32(bytes), local = new Uint8Array(30 + name.length), localView = new DataView(local.buffer);
+        writeZipHeader(localView, 0, 0x04034b50, [[4,2,20],[6,2,0x0800],[8,2,0],[10,2,0],[12,2,0],[14,4,crc],[18,4,bytes.length],[22,4,bytes.length],[26,2,name.length],[28,2,0]]);
+        local.set(name,30); localParts.push(local,bytes);
+        const central = new Uint8Array(46 + name.length), centralView = new DataView(central.buffer);
+        writeZipHeader(centralView, 0, 0x02014b50, [[4,2,20],[6,2,20],[8,2,0x0800],[10,2,0],[12,2,0],[14,2,0],[16,4,crc],[20,4,bytes.length],[24,4,bytes.length],[28,2,name.length],[30,2,0],[32,2,0],[34,2,0],[36,2,0],[38,4,0],[42,4,offset]]);
+        central.set(name,46); centralParts.push(central); offset += local.length + bytes.length;
+    }
+    const centralSize = centralParts.reduce((sum,part)=>sum+part.length,0);
+    const end = new Uint8Array(22), endView = new DataView(end.buffer);
+    writeZipHeader(endView,0,0x06054b50,[[4,2,0],[6,2,0],[8,2,entries.length],[10,2,entries.length],[12,4,centralSize],[16,4,offset],[20,2,0]]);
+    const blob = new Blob([...localParts,...centralParts,end],{type:'application/zip'});
+    if (blob.size > BACKUP_ARCHIVE_MAX_BYTES) throw new Error('完整备份超过 100 MB，请分批处理资料 Full backup exceeds 100 MB');
+    return blob;
+}
+function readStoredZip(buffer) {
+    const bytes = new Uint8Array(buffer), view = new DataView(buffer), decoder = new TextDecoder('utf-8',{fatal:true});
+    if (bytes.length < 22 || bytes.length > BACKUP_ARCHIVE_MAX_BYTES) throw new Error('ZIP 备份大小无效 Invalid ZIP backup size');
+    let end = -1;
+    for (let i=bytes.length-22; i>=Math.max(0,bytes.length-65557); i--) if (view.getUint32(i,true)===0x06054b50) { end=i; break; }
+    if (end<0 || view.getUint16(end+4,true)!==0 || view.getUint16(end+6,true)!==0) throw new Error('ZIP 文件损坏或不受支持 Invalid or unsupported ZIP');
+    const count=view.getUint16(end+10,true), centralSize=view.getUint32(end+12,true), centralOffset=view.getUint32(end+16,true);
+    if (count>5001 || centralOffset+centralSize!==end) throw new Error('ZIP 目录无效 Invalid ZIP directory');
+    const entries=new Map(); let pos=centralOffset, total=0;
+    for(let i=0;i<count;i++){
+        if(pos+46>centralOffset+centralSize||view.getUint32(pos,true)!==0x02014b50)throw new Error('ZIP 目录条目损坏 Corrupt ZIP entry');
+        const flags=view.getUint16(pos+8,true),method=view.getUint16(pos+10,true),crc=view.getUint32(pos+16,true),compressed=view.getUint32(pos+20,true),size=view.getUint32(pos+24,true),nameLength=view.getUint16(pos+28,true),extraLength=view.getUint16(pos+30,true),commentLength=view.getUint16(pos+32,true),disk=view.getUint16(pos+34,true),localOffset=view.getUint32(pos+42,true);
+        if(flags&1||flags&8||!(flags&0x0800)||method!==0||compressed!==size||size>BACKUP_ARCHIVE_MAX_BYTES||disk!==0)throw new Error('ZIP 必须为本站未压缩格式且不能加密 ZIP must use supported unencrypted format');
+        const name=decoder.decode(bytes.subarray(pos+46,pos+46+nameLength)); pos+=46+nameLength+extraLength+commentLength;
+        if(entries.has(name)||!(name==='manifest.json'||/^attachments\/[\w%.-]+--[\w%.-]+$/.test(name)))throw new Error('ZIP 含有重复或无效文件名 Duplicate or invalid ZIP path');
+        if(localOffset+30>bytes.length||view.getUint32(localOffset,true)!==0x04034b50)throw new Error('ZIP 文件内容损坏 Corrupt ZIP payload');
+        const localNameLength=view.getUint16(localOffset+26,true),localExtraLength=view.getUint16(localOffset+28,true),dataStart=localOffset+30+localNameLength+localExtraLength;
+        if(view.getUint16(localOffset+6,true)!==flags||view.getUint16(localOffset+8,true)!==method||decoder.decode(bytes.subarray(localOffset+30,localOffset+30+localNameLength))!==name||dataStart+size>centralOffset||view.getUint32(localOffset+14,true)!==crc||view.getUint32(localOffset+18,true)!==size||view.getUint32(localOffset+22,true)!==size)throw new Error('ZIP 文件头与目录不匹配 ZIP header mismatch');
+        const content=bytes.slice(dataStart,dataStart+size);
+        if(zipCrc32(content)!==crc)throw new Error('ZIP 校验失败，请重新导出 CRC mismatch');
+        total+=size;if(total>BACKUP_ARCHIVE_MAX_BYTES)throw new Error('ZIP 内容超过 100 MB ZIP contents exceed 100 MB');
+        entries.set(name,content);
+    }
+    if(pos!==centralOffset+centralSize)throw new Error('ZIP 目录长度无效 Invalid ZIP directory size');
+    return entries;
+}
 
 function backupText(value, max = 20000) {
     if (typeof value !== 'string' || value.length > max) throw new Error('备份文本字段无效 Invalid text field');
@@ -164,24 +228,106 @@ function buildBackupPayload() {
     clean.wrongQuestions = clean.wrongQuestions.map(({id,wrongAnswer,reason,date,resolved,resolvedAt,lastAttempt,correctStreak})=>({id,wrongAnswer,reason,date,resolved,resolvedAt,lastAttempt,correctStreak}));
     return {...clean,format:payload.format,version:2,exportedAt:payload.exportedAt,settings};
 }
+async function createFullBackupBlob() {
+    const backup=buildBackupPayload(),attachments=[],entries=[{name:'manifest.json',bytes:new TextEncoder().encode('')}];
+    const materials=(appData.materials||[]).filter(m=>!MATERIALS_DATA.some(item=>item.id===m.id));
+    let db=null,total=0;
+    try {
+        db=await openMaterialDB();
+        for(const material of materials){
+            if(!material.localFileStored)continue;
+            const row=await new Promise((resolve,reject)=>{const request=db.transaction('files').objectStore('files').get(String(material.id));request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+            if(!row?.file)throw new Error(`本地附件“${material.name}”缺失，请重新上传后再导出 Missing local attachment: ${material.name}`);
+            total+=row.file.size;if(total>BACKUP_ATTACHMENTS_MAX_BYTES)throw new Error('附件合计超过 90 MB；请减少资料后再导出 Attachments exceed 90 MB');
+            const path=`attachments/${encodeURIComponent(String(material.id))}--${attachments.length}.bin`;
+            const bytes=new Uint8Array(await row.file.arrayBuffer());
+            attachments.push({id:String(material.id),fileName:backupText(material.fileName||row.fileName||'attachment',300),mimeType:backupText(material.mimeType||row.file.type||'',300),size:bytes.length,path});
+            entries.push({name:path,bytes});
+        }
+    } finally { db?.close(); }
+    const notIncluded=materials.filter(m=>!m.localFileStored).map(m=>({id:m.id,name:m.name,fileName:m.fileName||''}));
+    const manifest={format:'igcse-local-bundle',version:1,backup,attachments,notIncluded};
+    entries[0].bytes=new TextEncoder().encode(JSON.stringify(manifest));
+    return createStoredZip(entries);
+}
+async function exportFullBackup() {
+    const button=document.getElementById('full-backup-export');
+    if(button?.disabled)return;
+    if(button)button.disabled=true;
+    try {
+        const blob=await createFullBackupBlob(),url=URL.createObjectURL(blob),a=document.createElement('a');
+        a.href=url;a.download=`igcse-full-backup-${getTodayStr()}.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+        showToast('完整备份已导出，包含本机附件 Full backup exported with local attachments');
+    } catch(error) { showToast('无法导出完整备份：'+error.message,7000); }
+    finally {if(button)button.disabled=false;}
+}
+function parseFullBackupArchive(buffer) {
+    const entries=readStoredZip(buffer),manifestBytes=entries.get('manifest.json');
+    if(!manifestBytes)throw new Error('完整备份缺少清单 Full backup manifest is missing');
+    const manifest=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(manifestBytes));
+    if(manifest?.format!=='igcse-local-bundle'||manifest.version!==1||!Array.isArray(manifest.attachments)||manifest.attachments.length>5000)throw new Error('完整备份格式无效 Invalid full backup manifest');
+    const metadataIds=new Map(backupList(manifest.backup?.materials??[],5000).map(m=>[String(m.id),m])),seen=new Set(),files=[];
+    let total=0;
+    for(const item of manifest.attachments){
+        backupObject(item);const id=backupId(item.id),fileName=backupText(item.fileName,300),path=backupText(item.path,1200),meta=metadataIds.get(id),content=entries.get(path);
+        if(seen.has(id)||!meta||meta.fileName!==fileName||!content||path!==`attachments/${encodeURIComponent(id)}--${files.length}.bin`||item.size!==content.length)throw new Error('附件与资料索引不匹配 Attachment does not match material metadata');
+        seen.add(id);total+=content.length;if(total>BACKUP_ATTACHMENTS_MAX_BYTES)throw new Error('附件合计超过 90 MB Attachments exceed 90 MB');
+        files.push({id,fileName,mimeType:backupText(item.mimeType||'',300),file:new Blob([content],{type:item.mimeType||''})});
+    }
+    if(entries.size!==files.length+1)throw new Error('完整备份中包含未登记文件 Unlisted files in full backup');
+    const notIncluded=backupList(manifest.notIncluded??[],5000);
+    return {backup:normaliseBackup(manifest.backup),files,notIncluded:notIncluded.length};
+}
+async function storeImportedAttachments(next,files) {
+    if(!files.length)return [];
+    const db=await openMaterialDB(),inserted=[],restored=[];
+    try {
+        await new Promise((resolve,reject)=>{
+            const tx=db.transaction('files','readwrite'),store=tx.objectStore('files');
+            for(const item of files){
+                const request=store.get(item.id);
+                request.onsuccess=()=>{
+                    const material=next.materials.find(m=>String(m.id)===item.id);
+                    if(!material)return;
+                    if(!request.result){store.put({id:item.id,file:item.file,fileName:item.fileName});inserted.push(item.id);}
+                    restored.push(item.id);
+                };
+                request.onerror=()=>{try{tx.abort();}catch(_){};};
+            }
+            tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||Error('无法写入本机附件'));tx.onabort=()=>reject(tx.error||Error('附件导入已取消'));
+        });
+    } finally {db.close();}
+    for(const id of restored){const material=next.materials.find(m=>String(m.id)===id);if(material){material.localFileStored=true;delete material.localMetadataOnly;}}
+    return inserted;
+}
+async function rollbackImportedAttachments(ids) {
+    if(!ids.length)return;
+    const db=await openMaterialDB();
+    try { await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite'),store=tx.objectStore('files');ids.forEach(id=>store.delete(id));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);}); }
+    finally {db.close();}
+}
 async function previewBackupImport(file) {
     const generation = ++backupPreviewVersion;
-    pendingBackup = null;
+    pendingBackup = null;pendingBackupFiles=[];
     document.getElementById('backup-confirm').disabled = true;
     const preview = document.getElementById('backup-preview');
     if (!file) { preview.textContent = ''; return; }
     try {
-        if (file.size > BACKUP_MAX_BYTES) throw new Error('备份超过 5 MB，请选择较小的备份 Backup exceeds 5 MB');
-        const incoming = normaliseBackup(JSON.parse(await file.text()));
+        const isZip=/\.zip$/i.test(file.name||'');
+        if(isZip&&file.size>BACKUP_ARCHIVE_MAX_BYTES)throw new Error('完整备份超过 100 MB Backup exceeds 100 MB');
+        if(!isZip&&file.size>BACKUP_MAX_BYTES)throw new Error('JSON 学习数据备份超过 5 MB，请选择较小备份 JSON backup exceeds 5 MB');
+        const full=isZip?parseFullBackupArchive(await file.arrayBuffer()):{backup:normaliseBackup(JSON.parse(await file.text())),files:[],notIncluded:0};
+        const incoming=full.backup;
         if (generation !== backupPreviewVersion) return;
-        pendingBackup = incoming;
-        preview.textContent = `可导入：${pendingBackup.quizRecords.length} 组练习、${pendingBackup.wrongQuestions.length} 道错题、${Object.keys(pendingBackup.srsData).length} 条 SRS、${pendingBackup.flashcards.length} 组闪卡、${pendingBackup.materials.length} 条资料索引、${Object.keys(pendingBackup.typingWords).length} 个默写词、${Object.keys(pendingBackup.commandWords).length} 个指令词记录。跳过已不在词库/题库中的条目：${pendingBackup.skipped}。现有同题状态与设置保留，重复记录不叠加。文件本体不包含在备份内。`;
+        pendingBackup = incoming;pendingBackupFiles=full.files;
+        preview.textContent = `可导入：${pendingBackup.quizRecords.length} 组练习、${pendingBackup.wrongQuestions.length} 道错题、${Object.keys(pendingBackup.srsData).length} 条 SRS、${pendingBackup.flashcards.length} 组闪卡、${pendingBackup.materials.length} 条资料索引、${Object.keys(pendingBackup.typingWords).length} 个默写词、${Object.keys(pendingBackup.commandWords).length} 个指令词记录。附件 ${full.files.length} 个${full.notIncluded?`；${full.notIncluded} 条旧资料仅有索引`:''}。跳过已不在词库/题库中的条目：${pendingBackup.skipped}。现有记录保留，重复资料不叠加。`;
         document.getElementById('backup-confirm').disabled = false;
-    } catch (error) { if (generation !== backupPreviewVersion) return; pendingBackup = null; preview.textContent = `无法导入 / Cannot import: ${error.message}`; }
+    } catch (error) { if (generation !== backupPreviewVersion) return; pendingBackup = null;pendingBackupFiles=[]; preview.textContent = `无法导入 / Cannot import: ${error.message}`; }
 }
-function confirmBackupImport() {
-    if (!pendingBackup || !currentUser) return;
+async function confirmBackupImport() {
+    if (!pendingBackup || !currentUser || backupImporting) return;
     if (currentPage === 'quiz' && quizState.questions.length && !quizState.finished && !document.getElementById('quiz-playing').classList.contains('hidden')) { showToast('请先完成或退出当前练习 Finish or exit your quiz first'); return; }
+    backupImporting=true;document.getElementById('backup-confirm').disabled=true;
     const next = mergeBackup(appData, pendingBackup);
     if (typeof quizOwnerKey === 'function') {
         next.commandWordProgress ||= {};
@@ -189,8 +335,9 @@ function confirmBackupImport() {
         for (const [word,state] of Object.entries(pendingBackup.commandWords)) if (!Object.prototype.hasOwnProperty.call(words,word)) words[word]=state;
     }
     const typingKey = typeof typingStorageKey === 'function' ? typingStorageKey() : null;
-    let oldTyping = null, typingWritten = false;
+    let oldTyping = null, typingWritten = false, insertedFiles=[];
     try {
+        insertedFiles=await storeImportedAttachments(next,pendingBackupFiles);
         if (typingKey && Object.keys(pendingBackup.typingWords).length) {
             oldTyping = localStorage.getItem(typingKey);
             const localTyping = JSON.parse(oldTyping || '{"words":{},"session":null}');
@@ -201,13 +348,16 @@ function confirmBackupImport() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch (error) {
         if (typingWritten) { try { if (oldTyping === null) localStorage.removeItem(typingKey); else localStorage.setItem(typingKey,oldTyping); } catch (_) {} }
+        try { await rollbackImportedAttachments(insertedFiles); } catch (_) {}
+        backupImporting=false;document.getElementById('backup-confirm').disabled=!pendingBackup;
         showToast('无法保存导入数据；请先导出备份并检查浏览器存储空间 Import could not be saved', 6000);
         return;
     }
+    backupImporting=false;
     appData = next;
     if (typingKey) typingOwner = null;
     document.getElementById('storage-save-warning')?.classList.add('hidden');
-    pendingBackup = null;
+    pendingBackup = null;pendingBackupFiles=[];
     document.getElementById('backup-confirm').disabled = true;
     document.getElementById('backup-file').value = '';
     document.getElementById('backup-preview').textContent = '已合并保存。原有记录、账号与设置保留。Merged and saved; existing records, accounts and settings retained.';
