@@ -38,3 +38,9 @@ Extended tests/glossary-browser.cjs with actual focus, keyboard, click and touch
 Materials: client-side IndexedDB stores the selected file (up to 50 MB); localStorage stores its searchable metadata. Search covers name/subject/tags/filename, with exact tag filtering. User entries support rename/tag edit/delete; bundled entries remain read-only. PDF opens in a new tab; other types download. Local backup intentionally excludes binary files. Existing metadata-only uploads receive an explicit re-upload message. Actual browser upload, IndexedDB readback, filter, rename, delete and cleanup passed in Chrome.
 
 Past papers: displayed type is derived from manifest kind (official past paper, official specimen or third-party directory), season labels are correct for Feb/March, May/June, Oct/Nov and specimen, and the fixed 2026-09-30 timestamp was removed. All 60 distinct source/resource URLs in the manifest returned HTTP 200 from curl on 2026-10-03. Cambridge warns its past papers may not reflect the current syllabus; the page now directs learners to check the syllabus before using older papers.
+
+## 2026-10-03 focus answer-coaching extension
+
+Added 16 further guides (four per subject for existing IDs 7, 8, 10 and 11), bringing the four-subject focus set to 52/80, thirteen per subject. Coverage includes database keys and criteria, accessibility alt text, RAM/ROM, parity, public-key encryption, iteration, ESL collocations/conditionals, composite functions, gradients, nth terms and volume ratios. Question IDs, options and canonical answers are unchanged.
+
+The four-subject browser walkthrough now checks each of the 52 explanation renderers plus mistake-book display, review progress, backup and 375/390/430/768px layout.
