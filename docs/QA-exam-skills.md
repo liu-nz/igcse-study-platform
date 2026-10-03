@@ -67,3 +67,7 @@ Automated checks verify the 30 IDs exist in the correct subject bank and each gu
 ## 2026-10-03 Biology and Economics coaching
 
 Added guides for b001–b015 (Biology 0610) and e001–e015 (Economics 0455). Biology examples reinforce process, structure and terminology; Economics examples practise concise cause-effect wording and distinctions such as quantity demanded versus demand, fiscal versus monetary policy, and private versus public goods. All 140 current guides are checked against existing answer keys and subjects. Browser rendering is exercised for quiz explanations and the mistake book across 375/390/430/768px widths.
+
+## 2026-10-03 ICT and Computer Science coaching
+
+Added question-specific guides for ict001–ict020 (ICT 0417) and cs001–cs020 (Computer Science 0478). ICT guidance emphasizes accurate definitions and function distinctions; Computer Science includes worked binary conversion, trace tables, complexity and algorithm prerequisites. All 180 current guides are checked against the question bank and subject codes; browser QA covers quiz and mistake-book rendering at 375/390/430/768px.
