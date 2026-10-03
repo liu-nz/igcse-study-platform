@@ -1,13 +1,17 @@
 /* Original practice and revision guidance. Not Cambridge exam questions.
-   Syllabus references are linked in FOCUS_SOURCES; reviewed 2026-09-30. */
+   Syllabus references are linked in SYLLABUS_SOURCES; checked 2026-10-03. */
 const FOCUS_SUBJECTS = ['ICT', '计算机科学', '英语', '数学'];
 const FOCUS_LABELS = {ICT:'ICT · 0417', '计算机科学':'CS · 0478', '英语':'ESL · 0510', '数学':'Math Extended · 0580'};
-const FOCUS_SOURCES = [
+const SYLLABUS_SOURCES = [
  {subject:'ICT',years:'2026–2028',url:'https://www.cambridgeinternational.org/Images/697139-2026-2028-syllabus.pdf'},
  {subject:'计算机科学',years:'2026–2028',url:'https://www.cambridgeinternational.org/Images/697167-2026-2028-syllabus.pdf'},
  {subject:'英语',years:'2027–2029',url:'https://www.cambridgeinternational.org/Images/721337-2027-2029-syllabus.pdf'},
  {subject:'英语',years:'2024–2026',url:'https://www.cambridgeinternational.org/Images/637160-2024-2026-syllabus.pdf'},
- {subject:'数学',years:'2025–2027 · Extended',url:'https://www.cambridgeinternational.org/Images/662466-2025-2027-syllabus.pdf'}
+ {subject:'数学',years:'2025–2027 · Extended',url:'https://www.cambridgeinternational.org/Images/662466-2025-2027-syllabus.pdf'},
+ {subject:'物理',years:'2026–2028',url:'https://www.cambridgeinternational.org/Images/697209-2026-2028-syllabus.pdf'},
+ {subject:'化学',years:'2026–2028',url:'https://www.cambridgeinternational.org/Images/697205-2026-2028-syllabus.pdf'},
+ {subject:'生物',years:'2026–2028',url:'https://www.cambridgeinternational.org/Images/697203-2026-2028-syllabus.pdf'},
+ {subject:'经济',years:'2027–2029',url:'https://www.cambridgeinternational.org/Images/718148-2027-2029-syllabus.pdf'}
 ];
 // Each row: topic, question, correct answer, three distractors, explanation.
 const FOCUS_QUESTION_ROWS = {
