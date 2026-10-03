@@ -71,3 +71,7 @@ Added guides for b001–b015 (Biology 0610) and e001–e015 (Economics 0455). Bi
 ## 2026-10-03 ICT and Computer Science coaching
 
 Added question-specific guides for ict001–ict020 (ICT 0417) and cs001–cs020 (Computer Science 0478). ICT guidance emphasizes accurate definitions and function distinctions; Computer Science includes worked binary conversion, trace tables, complexity and algorithm prerequisites. All 180 current guides are checked against the question bank and subject codes; browser QA covers quiz and mistake-book rendering at 375/390/430/768px.
+
+## 2026-10-03 Mathematics and ESL coaching
+
+Added specific guides for m001–m015 (Mathematics 0580) and esl001–esl022 (ESL 0510). Worked models preserve mathematical steps, units and exact results; ESL examples explain grammar cues and reusable English sentences in Chinese. All 217 question-bank IDs now have a linked answer guide. Validation covers subject mapping, guide content, quiz and mistake-book display, and 375/390/430/768px layouts.
