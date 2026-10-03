@@ -663,6 +663,7 @@ function startQuizTimer() {
 
 function renderQuestion() {
     const q = quizState.questions[quizState.currentIndex];
+    document.getElementById('question-card').setAttribute('data-subject', q.subject || '');
     quizState.selectedOption = quizState.answers[quizState.currentIndex] ?? quizState.draftSelections?.[quizState.currentIndex] ?? null;
     quizState.submitted = quizState.answers[quizState.currentIndex] !== null && quizState.answers[quizState.currentIndex] !== undefined;
 
@@ -1030,6 +1031,7 @@ function startFlashcard(deckId) {
         currentIndex: 0,
         flipped: false,
     };
+    document.getElementById('flashcard').setAttribute('data-subject', deck.subject || '');
     document.getElementById('flashcard-decks').classList.add('hidden');
     document.getElementById('flashcard-study').classList.remove('hidden');
     document.getElementById('card-total').textContent = flashcardState.cards.length;

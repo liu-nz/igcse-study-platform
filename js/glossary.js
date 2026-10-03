@@ -135,7 +135,7 @@ const GLOSSARY_ENTRIES = [
   ["radioactivity","放射性","不稳定原子核自发放出射线并转变为其他核素的现象。","物理"],
   ["half-life","半衰期","放射性样本中一半原子核发生衰变所需的时间，与外界条件无关。","物理"],
   ["scalar","标量","只有大小没有方向的物理量，如质量、时间、速率。","物理"],
-  ["vector quantity","矢量","既有大小又有方向的物理量，如力、速度、加速度。","物理"],
+  ["vector quantity","矢量","既有大小又有方向的物理量，如力、速度、加速度。","物理",["vector"]],
   ["moment","力矩","力使物体绕支点转动的效应，M = F × d（d 为力臂 perpendicular distance）。","物理"],
   ["centre of gravity","重心","物体各部分所受重力的等效作用点。","物理"],
   ["Hooke's law","胡克定律","弹簧的伸长量与所受拉力成正比（在弹性限度内），F = kx。","物理"],
@@ -489,11 +489,14 @@ const GLOSSARY_TERMS = GLOSSARY_ENTRIES.map(([en, zh, def, subj, extra]) => {
 });
 
 const KW_MAP = new Map();
+const KW_VARIANT_MAP = new Map();
 const KW_ALIAS_LIST = [];
 GLOSSARY_TERMS.forEach(entry => {
   entry.aliases.forEach(a => {
     const key = a.toLowerCase();
     if (!KW_MAP.has(key)) KW_MAP.set(key, entry);
+    if (!KW_VARIANT_MAP.has(key)) KW_VARIANT_MAP.set(key, []);
+    if (!KW_VARIANT_MAP.get(key).some(candidate => candidate.en === entry.en && candidate.subj === entry.subj)) KW_VARIANT_MAP.get(key).push(entry);
     KW_ALIAS_LIST.push(a);
   });
 });
@@ -518,10 +521,35 @@ function kwEscape(str) {
 function kwIsAscii(text) { return /^[\x00-\x7F]+$/.test(text); }
 function kwIsWordChar(ch) { return ch ? /[A-Za-z0-9_]/.test(ch) : false; }
 
-function kwMakeSpan(entry, text) {
+function kwSubjectContext(node) {
+  for (let el = node.parentElement; el; el = el.parentElement) {
+    const subject = el.getAttribute && el.getAttribute('data-subject');
+    if (subject) return subject.toLowerCase();
+  }
+  return '';
+}
+
+function kwSubjectMatches(context, subject) {
+  const groups = [
+    ['数学', 'math', 'maths', 'mathematics'],
+    ['物理', 'physics'],
+    ['信息与通信技术', 'ict'],
+    ['英语', 'english', 'esl'],
+    ['计算机科学', 'computer science'],
+  ];
+  const normalize = value => value.toLowerCase().replace(/\s+/g, '');
+  const c = normalize(context), s = normalize(subject);
+  return c.includes(s) || s.includes(c) || groups.some(group =>
+    group.some(name => normalize(name) === c) && group.some(name => normalize(name) === s)
+  );
+}
+
+function kwMakeSpan(entry, text, alias, subjectContext) {
   const span = document.createElement('span');
   span.className = 'kw-term';
   span.tabIndex = 0;
+  span.setAttribute('data-kw-alias', alias.toLowerCase());
+  if (subjectContext) span.setAttribute('data-kw-context', subjectContext);
   span.setAttribute('data-kw-en', entry.en);
   span.setAttribute('data-kw-zh', entry.zh);
   span.setAttribute('data-kw-def', entry.def);
@@ -541,8 +569,16 @@ function kwEnhanceTextNode(node, seen) {
     const idx = match.index;
     if (idx < last) continue;
     const word = match[0];
-    const entry = KW_MAP.get(word.toLowerCase());
+    const alias = word.toLowerCase();
+    let entry = KW_MAP.get(alias);
     if (!entry) continue;
+    const subjectContext = kwSubjectContext(node);
+    if (subjectContext) {
+      const contextualEntry = (KW_VARIANT_MAP.get(alias) || []).find(candidate =>
+        candidate.subj && kwSubjectMatches(subjectContext, candidate.subj)
+      );
+      if (contextualEntry) entry = contextualEntry;
+    }
     if (kwIsAscii(word)) {
       if (kwIsWordChar(text[idx - 1])) continue;
       if (entry.csList.length && !entry.csList.includes(word)) continue;
@@ -554,7 +590,7 @@ function kwEnhanceTextNode(node, seen) {
       seen.add(key);
     }
     frag.appendChild(document.createTextNode(text.slice(last, idx)));
-    frag.appendChild(kwMakeSpan(entry, word));
+    frag.appendChild(kwMakeSpan(entry, word, alias, subjectContext));
     last = idx + word.length;
     matched++;
     if (KW_RE.lastIndex <= idx) KW_RE.lastIndex = last;
@@ -655,10 +691,18 @@ function kwShow(el) {
   const zh = el.getAttribute('data-kw-zh') || '';
   const def = el.getAttribute('data-kw-def') || '';
   const subj = el.getAttribute('data-kw-subj') || '';
-  tip.innerHTML =
-    '<div class="kwt-head"><span class="kwt-zh">' + kwEscape(zh) + '</span><span class="kwt-en">' + kwEscape(en) + '</span></div>' +
-    (subj ? '<div class="kwt-subj">' + kwEscape(subj) + '</div>' : '') +
-    '<div class="kwt-def">' + kwEscape(def) + '</div>';
+  const alias = el.getAttribute('data-kw-alias') || en.toLowerCase();
+  const context = el.getAttribute('data-kw-context') || '';
+  let variants = KW_VARIANT_MAP.get(alias) || [];
+  if (context) {
+    const matched = variants.filter(candidate => candidate.subj &&
+      kwSubjectMatches(context, candidate.subj));
+    if (matched.length) variants = matched;
+  }
+  if (variants.length < 2) variants = [{ en, zh, def, subj }];
+  tip.innerHTML = '<div class="kwt-head"><span class="kwt-zh">' + kwEscape(variants.length === 1 ? variants[0].zh : zh) + '</span><span class="kwt-en">' + kwEscape(en) + '</span></div>' +
+    variants.map(variant => (variant.subj ? '<div class="kwt-subj">' + kwEscape(variant.subj) + '</div>' : '') +
+      '<div class="kwt-def">' + kwEscape(variant.def) + '</div>').join('');
   tip.classList.remove('hidden');
   const rect = el.getBoundingClientRect();
   const tw = tip.offsetWidth, th = tip.offsetHeight;
