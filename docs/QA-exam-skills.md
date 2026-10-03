@@ -63,3 +63,7 @@ A per-identity localStorage lease allows one active quiz tab, renewed every 10 s
 Added bilingual answer guides to existing Physics 0625 questions p001–p015 and Chemistry 0620 questions c001–c015. Each guide links the canonical question ID and provides Chinese reasoning, English exam terms, an original answer model and a common pitfall; the full coaching total is now 110 of 217 questions. Corrected c003's explanation so low pH is not confused with strong-acid ionisation, and clarified the quantity-supplied/quantity-demanded wording in Economics e013. Existing question IDs and answer indices remain stable.
 
 Automated checks verify the 30 IDs exist in the correct subject bank and each guide has bilingual coaching fields. Browser QA checks quiz and mistake-book rendering for all 30, including the acid-strength distinction, across 375/390/430/768px widths.
+
+## 2026-10-03 Biology and Economics coaching
+
+Added guides for b001–b015 (Biology 0610) and e001–e015 (Economics 0455). Biology examples reinforce process, structure and terminology; Economics examples practise concise cause-effect wording and distinctions such as quantity demanded versus demand, fiscal versus monetary policy, and private versus public goods. All 140 current guides are checked against existing answer keys and subjects. Browser rendering is exercised for quiz explanations and the mistake book across 375/390/430/768px widths.
