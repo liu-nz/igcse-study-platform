@@ -2098,6 +2098,8 @@ function viewUnitMustKnow(subject) {
 
 // ========== 初始化 ==========
 window.addEventListener('load', () => {
+    const inviteLink = document.getElementById('invite-link');
+    if (inviteLink) inviteLink.value = window.location.origin + window.location.pathname;
     // 检查是否有已登录用户
     if (appData.currentUser) {
         currentUser = appData.currentUser;
