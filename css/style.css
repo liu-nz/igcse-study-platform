@@ -1925,6 +1925,14 @@ body {
     align-items: flex-end;
 }
 
+.study-api-settings { padding: 0 20px 12px; }
+.study-api-panel { margin-top: 10px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-secondary, var(--bg)); }
+.study-api-panel p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: var(--text-light); }
+.study-api-panel label { display: block; margin: 10px 0 4px; font-size: 13px; font-weight: 600; }
+.study-api-panel input { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: var(--bg); }
+.study-api-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.study-api-panel #study-api-status { margin-bottom: 0; }
+
 .chat-input-area textarea {
     flex: 1;
     padding: 12px 14px;

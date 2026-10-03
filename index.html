@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IGCSE 智能备考平台 · IGCSE Smart Revision Platform</title>
-    <link rel="stylesheet" href="css/style.css?v=20261003-nav1">
+    <link rel="stylesheet" href="css/style.css?v=20261003-localtools1">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
 </head>
 <body>
@@ -631,8 +631,25 @@
                                 <div class="chat-avatar">🤖</div>
                                 <div>
                                     <h4>IGCSE 本地学习助手<span class="bi-en">IGCSE Study Assistant</span></h4>
-                                    <span class="chat-status">本地关键词知识库 · 非大型 AI 模型 · 不读取上传文件<span class="bi-en">Local keyword knowledge base · no AI model · cannot read uploaded files</span></span>
+                                    <span class="chat-status">默认使用本地知识库，不读取上传文件；可选连接自带 API<span class="bi-en">Uses a local knowledge base by default, without reading uploaded files; optionally connect your own API</span></span>
                                 </div>
+                            </div>
+                        </div>
+                        <div class="study-api-settings">
+                            <button class="btn btn-outline btn-sm" type="button" onclick="toggleStudyAssistantApiPanel()">可选：连接自带 API <span class="en-inline">Optional: connect your API</span></button>
+                            <div id="study-api-panel" class="study-api-panel hidden">
+                                <p>完全可选。默认本地学习助手无需 API。启用后，问题会从你的浏览器直接发送到兼容 endpoint；服务商可能收费并按其隐私规则处理内容，服务还需允许浏览器跨域连接（CORS）。本站不会收到或保存密钥；密钥只保存在此页面内存，离开、刷新或关闭页面即清除。<span class="bi-en">Optional. The local assistant needs no API. Prompts go directly from your browser to a compatible endpoint. The provider may charge you and process prompts under its privacy terms; its service must permit browser access (CORS). This site never receives or saves the key; it stays in page memory and clears when you leave, reload or close the page.</span></p>
+                                <label for="study-api-endpoint">完整 Chat Completions endpoint</label>
+                                <input id="study-api-endpoint" type="url" autocomplete="url" placeholder="https://provider.example/v1/chat/completions">
+                                <label for="study-api-model">Model</label>
+                                <input id="study-api-model" type="text" autocomplete="off" maxlength="200" placeholder="provider model name">
+                                <label for="study-api-key">API key（不会保存）</label>
+                                <input id="study-api-key" type="password" autocomplete="new-password" maxlength="500" placeholder="Paste your own key for this page session">
+                                <div class="study-api-actions">
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="connectStudyAssistantApi()">本次会话启用 Use for this session</button>
+                                    <button type="button" class="btn btn-outline btn-sm" onclick="clearStudyAssistantApi()">断开并清除 Clear</button>
+                                </div>
+                                <p id="study-api-status" role="status" aria-live="polite">尚未连接；核心学习功能照常使用。No API connected; core study features work as usual.</p>
                             </div>
                         </div>
                         <div class="chat-messages" id="chat-messages">
@@ -661,7 +678,7 @@
                         </div>
                         <div class="chat-input-area">
                             <textarea id="chat-input" placeholder="输入你的问题… Ask your question…" rows="1" onkeydown="handleChatKeydown(event)"></textarea>
-                            <button class="btn btn-primary chat-send" onclick="sendChatMessage()">发送 <span class="en-inline">Send</span></button>
+                            <button class="btn btn-primary chat-send" id="chat-send-button" onclick="sendChatMessage()">发送 <span class="en-inline">Send</span></button>
                         </div>
                     </div>
                 </section>
@@ -834,10 +851,17 @@
                             </div>
                             <button class="btn btn-outline btn-sm" onclick="exportData()">导出 <span class="en-inline">Export</span></button>
                         </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <span class="setting-label">完整本地备份<span class="bi-en">Complete local backup</span></span>
+                                <span class="setting-desc">导出一个 ZIP，包含学习数据、资料索引与当前浏览器中已保存的资料附件；不含账号和 API 密钥。最大 100 MB。<span class="bi-en">Export one ZIP with study data, material metadata and saved attachments from this browser. No accounts or API keys. Maximum 100 MB.</span></span>
+                            </div>
+                            <button id="full-backup-export" class="btn btn-outline btn-sm" onclick="exportFullBackup()">完整备份 ZIP <span class="en-inline">Full backup</span></button>
+                        </div>
                         <div class="backup-import">
                             <label for="backup-file" class="setting-label">导入本机备份 Import a local backup</label>
-                            <p class="page-desc">先选择本站导出的 JSON 查看预览，再合并保存。不会删除现有记录；相同错题、SRS 与默写状态以本机为准，设置与账号保持不变。只恢复学习数据，不恢复资料文件本体。<span class="bi-en">Preview a site-exported JSON backup, then merge it. Existing records, question states, accounts and settings are kept. Material files are not included. This is manual transfer, not cloud sync.</span></p>
-                            <input type="file" id="backup-file" accept=".json,application/json" onchange="previewBackupImport(this.files[0])">
+                            <p class="page-desc">选择 JSON 学习数据备份或完整 ZIP 备份，先预览再合并。完整 ZIP 会恢复本机附件；现有错题、SRS、资料及账号保留，不会覆盖本机同 ID 文件。附件最多 90 MB，完整备份最多 100 MB。<span class="bi-en">Preview and merge a JSON study backup or full ZIP backup. ZIP restores local attachments. Existing mistakes, SRS, materials and accounts are kept; same-ID local files are not overwritten. Attachments: 90 MB max; archive: 100 MB max.</span></p>
+                            <input type="file" id="backup-file" accept=".json,.zip,application/json,application/zip" onchange="previewBackupImport(this.files[0])">
                             <p id="backup-preview" class="page-desc" role="status" aria-live="polite"></p>
                             <button id="backup-confirm" class="btn btn-outline btn-sm" onclick="confirmBackupImport()" disabled>合并导入 Merge backup</button>
                         </div>
@@ -1040,10 +1064,11 @@
     <script src="js/glossary.js?v=20261003-context1"></script>
     <script src="js/data-options-i18n.js?v=20261001-optbi1"></script>
     <script src="js/data-exam-skills.js?v=20261003-mathesl4"></script>
-    <script src="js/app.js?v=20261003-papers1"></script>
+    <script src="js/app.js?v=20261003-localtools1"></script>
+    <script src="js/study-assistant-api.js?v=20261003-byo1"></script>
     <script src="js/quiz-recovery.js?v=20261003-multitab1"></script>
     <script src="js/exam-skills.js?v=20261001-exam1"></script>
-    <script src="js/backup.js?v=20261001-exam2"></script>
+    <script src="js/backup.js?v=20261003-fullbackup1"></script>
     <script src="js/typing.js?v=20261001-optbi1"></script>
 </body>
 </html>

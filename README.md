@@ -3,8 +3,8 @@
 专门帮助中文母语者理解 IGCSE 英文考点、术语与答题要求的免费双语备考网站。
 A free bilingual IGCSE revision site for native Chinese speakers, connecting Chinese explanations with English exam terminology.
 
-所有核心学习功能均在浏览器本地运行，无付费 AI 或云服务依赖。学习助手匹配内置关键词知识库，不是大型 AI 模型，也不能读取上传文件。账号和成员记录仅存在当前浏览器，不代表真实云端登录或协作。
-Core study features run locally. The Study Assistant uses a built-in keyword knowledge base, without an AI model or file reading. Accounts and member records are browser-local, without cloud authentication or collaboration.
+所有核心学习功能均在浏览器本地运行，无付费 AI 或云服务依赖。学习助手默认匹配内置关键词知识库；用户可选连接兼容 API，密钥只保存在当前页面内存且不会进入备份。账号和成员记录仅存在当前浏览器，不代表真实云端登录或协作。
+Core study features run locally, without paid AI or cloud dependencies. The Study Assistant defaults to its built-in keyword knowledge base; users may optionally connect a compatible API, with its key held only in page memory and excluded from backups. Accounts and member records are browser-local, not cloud authentication or collaboration.
 
 ## 复习闭环
 
@@ -28,9 +28,9 @@ Core study features run locally. The Study Assistant uses a built-in keyword kno
 
 ## 零成本备份与换设备
 
-在「设置 → 数据管理」导出 JSON，再在另一台设备选择文件、查看预览、点击「合并导入」。兼容旧版 v1 导出与新版 v2（最大 5 MB）。备份包含练习、错题、SRS、闪卡、资料索引及当前用户的默写词进度，不包含账号、成员、API 凭据或资料文件本体；默写中的输入会话不迁移。
+在「设置 → 数据管理」可导出两种备份：JSON 学习数据（兼容旧版 v1 与新版 v2，最大 5 MB），或完整 ZIP（最大 100 MB，其中附件合计最多 90 MB）。完整 ZIP 会携带本机 IndexedDB 中的资料附件，可在另一台设备预览后恢复；旧的 metadata-only 资料仍需重新上传。两种备份均包含练习、错题、SRS、闪卡、资料索引及当前用户的默写词进度，不包含账号、成员或 API 凭据；默写中的输入会话不迁移。
 
-重复导入不会叠加同一练习；已有同题错题、SRS、默写状态及账号、设置以本机为准。闪卡合并不重复的卡片，资料按 ID 合并。每日统计和时长采用快照最大值与已去重历史的较大值，避免重复叠加；跨设备尚未完成的独立答题统计可能无法完整相加，这属于手动迁移而非实时同步。
+重复导入不会叠加同一练习；已有同题错题、SRS、默写状态、资料及账号、设置以本机为准；ZIP 中同 ID 的本地文件不会覆盖。闪卡合并不重复的卡片，资料按 ID 合并。每日统计和时长采用快照最大值与已去重历史的较大值，避免重复叠加；跨设备尚未完成的独立答题统计可能无法完整相加，这属于手动迁移而非实时同步。
 
 新版练习保存独立会话 ID；旧版无 ID 的完全相同练习会被视为重复。题目快照按本站当前题库恢复，已移除的题目会跳过并在预览中提示。请只导入自己的本站备份，保管好文件（个人学习内容可能包含隐私）。
 
@@ -52,8 +52,10 @@ SRS 显示今日与逾期、明天和未来 7 天（含明天、不含今天）�
 - **权限控制 Access control**：成员管理仅所有者与协作者可访问；访客账户看不到该入口，强行跳转会被拦截并提示。
   Members is restricted to owners and collaborators — guests cannot see or open it.
 - 8 大科目题库（数学/物理/化学/生物/经济/英语 ESL/ICT/计算机科学），217 道练习题，120 张闪卡（10 个卡组），40 份资料，14 套真题，10 个 内置知识点。
-- 纯前端实现，零依赖，打开即用。响应式设计适配手机和电脑端。
-  Pure front end, no dependencies, responsive on phone and desktop.
+- **完整本地备份 Full local backup**：ZIP 包含学习数据与资料附件；兼容旧 JSON 备份，导入前预览，失败时回滚已写入附件。
+- **可选 BYO API**：兼容 Chat Completions endpoint；默认关闭，本地知识助手照常可用，密钥不写入持久存储或备份。
+- 纯前端实现，无第三方运行时依赖；响应式设计适配手机和电脑端。
+  Pure front end with no third-party runtime dependency, responsive on phone and desktop.
 
 ## 演示账号 Demo accounts
 - 邮箱 Email：demo@igcse.com
