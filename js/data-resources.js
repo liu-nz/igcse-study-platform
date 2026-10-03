@@ -1,4 +1,4 @@
-/* Public source links checked 2026-09-30. Files remain on their publishers’ sites. */
+/* Public links checked 2026-10-03. Files remain on their publishers’ sites. */
 const PAPER_RESOURCES = [
   {
     "id": "0417-2026-index",
