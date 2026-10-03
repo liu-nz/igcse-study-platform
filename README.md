@@ -16,7 +16,7 @@ Core study features run locally. The Study Assistant uses a built-in keyword kno
 
 新增「考试指令词」页：14 个指令词的中文说明、英文表达示例、常见误区与官方来源链接，附 8 道原创答法辨析练习。错过的词加入待巩固，连续两次辨析正确后移出，历史保留；这不等于真实考试答题已经掌握。当前身份的指令词进度可随 v2 备份迁移，导入同词仍保留本机状态。
 
-四个重点科目各 20 道（合计 80 道）代表性题目新增中文思路、英文术语、原创表达示例与失分提醒，答题解析和错题本均可查看。其余题目继续使用已有解析，不声称已完成全部题库的答题指导。所有示例为本站原创教学内容，不是官方评分标准；答题长度与要点应结合具体题目、分值、科目考纲。
+四个重点科目各 20 道（合计 80 道）代表性题目，以及 Physics 0625 和 Chemistry 0620 各 15 道题，提供中文思路、英文术语、原创表达示例与失分提醒，答题解析和错题本均可查看。目前共覆盖 110 道；其余题目继续使用已有解析，不声称已完成全部题库的答题指导。所有示例为本站原创教学内容，不是官方评分标准；答题长度与要点应结合具体题目、分值、科目考纲。
 
 来源：[Cambridge 指令词说明](https://www.cambridgeinternational.org/exam-administration/what-to-expect-on-exams-day/command-words/)；[Math 0580 2025–2027 考纲](https://www.cambridgeinternational.org/Images/662466-2025-2027-syllabus.pdf)。compare 应按题目比较相同点和／或不同点，不能强行套用“每次必须两者都写”的规则。
 
