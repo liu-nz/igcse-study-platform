@@ -106,6 +106,14 @@ body {
     box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
 
+.local-account-notice {
+    margin: 0 0 18px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: rgba(243,156,18,0.12);
+    line-height: 1.65;
+}
+
 .login-tabs {
     display: flex;
     margin-bottom: 24px;
@@ -2049,142 +2057,6 @@ body {
 }
 
 /* ========================================
-   成员管理
-   ======================================== */
-.share-section {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-.share-card {
-    background: var(--card-bg);
-    border-radius: var(--radius);
-    padding: 24px;
-    box-shadow: var(--shadow);
-}
-
-.share-card h4 {
-    margin-bottom: 8px;
-    color: var(--text);
-}
-
-.share-card p {
-    font-size: 13px;
-    color: var(--text-light);
-    margin-bottom: 16px;
-}
-
-.share-link-box {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.share-link-box input {
-    flex: 1;
-    padding: 10px 12px;
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    color: var(--text);
-    background: var(--bg);
-    outline: none;
-}
-
-.share-config {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-
-.share-config label {
-    font-size: 13px;
-    color: var(--text-light);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.share-config select {
-    padding: 6px 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 12px;
-    background: var(--card-bg);
-    color: var(--text);
-}
-
-.share-tip {
-    font-size: 12px;
-    color: var(--text-light);
-    margin-top: 8px;
-}
-
-.members-list-section h4 {
-    margin-bottom: 16px;
-    color: var(--text);
-}
-
-.members-list {
-    background: var(--card-bg);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-}
-
-.member-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-}
-
-.member-item:last-child {
-    border-bottom: none;
-}
-
-.member-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    color: white;
-    font-size: 15px;
-}
-
-.member-info {
-    flex: 1;
-}
-
-.member-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-}
-
-.member-meta {
-    font-size: 12px;
-    color: var(--text-light);
-}
-
-.member-role-badge {
-    font-size: 11px;
-    padding: 3px 10px;
-    border-radius: 10px;
-    font-weight: 500;
-}
-
-.role-owner { background: rgba(231,76,60,0.1); color: var(--accent); }
-.role-collab { background: rgba(41,128,185,0.1); color: var(--primary-light); }
-.role-guest { background: rgba(127,140,141,0.1); color: var(--text-light); }
-
-/* ========================================
    设置
    ======================================== */
 .settings-section {
@@ -2427,9 +2299,6 @@ body {
     }
     .wrong-stats {
         grid-template-columns: repeat(2, 1fr);
-    }
-    .share-section {
-        grid-template-columns: 1fr;
     }
 }
 
@@ -2864,35 +2733,6 @@ body.dark-mode .kwt-def { color:#dfe6ee; }
 
 @media(max-width:600px){ .kw-tooltip { max-width: calc(100vw - 24px); } }
 body.no-kw .kw-term { background:none; border-bottom:none; padding:0; cursor:inherit; box-shadow:none; }
-
-/* ========================================
-   成员列表 (Members)
-   ======================================== */
-.lb-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:20px; }
-.lb-stat { background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; text-align:center; }
-.lb-stat-value { display:block; font-size:26px; font-weight:700; color:var(--primary-light); line-height:1.3; }
-.lb-stat-label { display:block; font-size:12px; color:var(--text-light); margin-top:2px; }
-.lb-me-tag { font-style:normal; font-size:10px; margin-left:6px; padding:1px 6px; border-radius:8px; background:var(--primary-light); color:#fff; }
-
-.member-avatar.sm { width:28px; height:28px; font-size:12px; }
-.member-stats { display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end; max-width:320px; }
-.member-stats span { font-size:11px; color:var(--text-light); text-align:center; }
-.member-stats b { display:block; font-size:14px; color:var(--primary-light); }
-.member-email { color:var(--primary-light); }
-.member-demo { opacity:0.55; }
-.members-list-section .lb-summary { margin-top:14px; margin-bottom:14px; }
-#members-tip { margin-bottom:12px; }
-
-/* 当前身份无权访问的页面提示（如访客打开成员管理） */
-.access-denied { text-align:center; padding:48px 20px; }
-.access-denied .access-denied-icon { font-size:44px; display:block; margin-bottom:12px; }
-.access-denied h4 { font-size:18px; margin-bottom:8px; }
-.access-denied p { font-size:13px; color:var(--text-light); line-height:1.8; }
-
-@media(max-width:900px){
-  .member-item { flex-wrap:wrap; }
-  .member-stats { max-width:none; justify-content:flex-start; }
-}
 
 /* ========================================
    刷题选项双语 (Bilingual quiz options)

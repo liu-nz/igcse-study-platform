@@ -21,14 +21,14 @@ function loseQuizLock(){if(quizConflicted)return;quizConflicted=true;activeQuizL
 function hasOtherActiveQuiz(){const lock=readQuizLock();return Boolean(lock&&lock.expiresAt>Date.now()&&lock.tabId!==QUIZ_TAB_ID);}
 window.addEventListener('storage',event=>{
     if(event.key===STORAGE_KEY&&event.newValue&&(!activeQuizLock||quizState.finished)){
-        try{const latest=JSON.parse(event.newValue),identity=u=>u?.role==='guest'?'guest:'+u.name:u?.email||u?.name;if(identity(latest.currentUser)===identity(currentUser)){appData=latest;if(currentPage==='quiz')renderQuizRecovery();}}catch(_){}
+        try{const latest=JSON.parse(event.newValue),identity=u=>u?.id|| (u?.role==='guest'?'guest:'+u.name:u?.email||u?.name);if(identity(latest.currentUser)===identity(currentUser)){appData=latest;if(currentPage==='quiz')renderQuizRecovery();}}catch(_){}
     }
     const owner=quizOwnerKey();if(!owner||event.key!==quizLockKey(owner)||!activeQuizLock)return;
     const lock=readQuizLock(owner);if(lock&&lock.expiresAt>Date.now()&&lock.tabId!==QUIZ_TAB_ID)loseQuizLock();
 });
 function quizOwnerKey() {
     if (!currentUser) return null;
-    return 'owner:' + encodeURIComponent(currentUser.role === 'guest' ? 'guest:' + currentUser.name : currentUser.email || currentUser.name);
+    return 'owner:' + encodeURIComponent(currentUser.id || (currentUser.role === 'guest' ? 'guest:' + currentUser.name : currentUser.email || currentUser.name));
 }
 function questionRevision(question) {
     return JSON.stringify([question.question, question.options, question.answer]);

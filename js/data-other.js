@@ -110,13 +110,6 @@ const MATERIALS_DATA = [
       content:"考前一周复习计划 Final Week Revision Plan\n\n【第 7–6 天：扫清薄弱点】\n• 用「学习分析」页找出正确率低于 60% 的知识点\n• 每个薄弱点：先看必考点 → 做 10 道同专题题 → 重看错题\n• 不要在这个时候开始全新大题型的陌生内容\n\n【第 5–4 天：公式与术语冲刺】\n• 数学/物理/化学：默写公式表一遍，默写不出的单独抄一遍\n• ESL：过一遍连接词与写作模板\n• ICT/CS：用「打字默写」过一遍术语词库，重点看错词\n\n【第 3 天：完整限时练习】\n• 按真实时长做一套，中途不看笔记\n• 做完只对答案，不重做\n\n【第 2 天：只看错题与解析】\n• 把错题按「概念不清 / 粗心 / 完全不会」分类\n• 概念不清的回到必考点；粗心的记下提醒自己的检查动作\n\n【第 1 天：轻量收尾】\n• 只看公式卡与错词表，不做新题\n• 准备好证件、文具、计算器（换好电池）、手表\n• 确认考场与时间\n\n【考试当天 On the day】\n• 先浏览全卷，从有把握的题开始\n• 计算题写公式与代入步骤，带单位\n• 论述题分点作答，用术语\n• 留出最后 5–10 分钟检查" },
 ];
 
-const MEMBERS_DATA = [
-    { name:"我 (Demo)", role:"owner", roleName:"所有者 Owner", joinDate:"2024-09-01", lastActive:"刚刚", avatarColor:"#e74c3c" },
-    { name:"小明", role:"collab", roleName:"协作者 Collaborator", joinDate:"2024-09-05", lastActive:"2小时前", avatarColor:"#2980b9" },
-    { name:"小红", role:"collab", roleName:"协作者 Collaborator", joinDate:"2024-09-10", lastActive:"昨天", avatarColor:"#27ae60" },
-    { name:"访客A", role:"guest", roleName:"只读访客 Guest", joinDate:"2024-09-15", lastActive:"3天前", avatarColor:"#7f8c8d" },
-];
-
 const AI_KNOWLEDGE = {
     "牛顿第二定律": {
         answer: "牛顿第二定律 Newton's Second Law：物体加速度与合外力成正比，与质量成反比，方向与合外力相同。\n\n公式 Formula：F = ma\n\n• F = 合外力 Resultant force (N)\n• m = 质量 Mass (kg)\n• a = 加速度 Acceleration (m/s²)\n\n关键点 Key points：\n1. F 是合外力，所有力的矢量和 Vector sum\n2. 力和加速度都是矢量 Vector，方向一致\n3. 1N = 1kg·m/s²\n\n例题 Example：5kg 物体受 20N 合力，a = F/m = 20/5 = 4 m/s²",

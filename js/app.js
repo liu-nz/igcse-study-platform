@@ -28,6 +28,7 @@ let reviewState = {
 
 // ========== 数据存储 ==========
 const STORAGE_KEY = 'igcse_study_platform';
+const PROFILE_DATA_KEYS = ['quizRecords','quizDrafts','wrongQuestions','srsData','flashcards','materials','settings','dailyStats','studyTime','streak','lastStudyDate','commandWordProgress'];
 
 function loadData() {
     try {
@@ -45,6 +46,17 @@ function saveData(data) {
         return false;
     }
     try {
+        if (currentUser?.id) {
+            mergeLatestLocalProfiles(data, currentUser.id);
+            data.profiles ||= {};
+            delete data.profiles[currentUser.id];
+            data.activeProfileId = currentUser.id;
+            data.currentUser = safeUser(currentUser);
+            if (currentUser.role === 'guest') {
+                data.guestName = currentUser.name;
+                if (currentUser.email) data.guestEmail = currentUser.email;
+            }
+        }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         document.getElementById('storage-save-warning')?.classList.add('hidden');
         return true;
@@ -54,54 +66,56 @@ function saveData(data) {
     }
 }
 
-function getDefaultData() {
+function mergeLatestLocalProfiles(data, activeProfileId) {
+    let latest;
+    try { latest = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch (_) { return null; }
+    if (!latest || latest.profilesMigrated !== true) return latest;
+    data.profiles = { ...(data.profiles || {}), ...(latest.profiles || {}) };
+    if (latest.activeProfileId && latest.activeProfileId !== activeProfileId) {
+        data.profiles[latest.activeProfileId] = profileSnapshot(latest);
+    }
+    const users = new Map();
+    [...(latest.users || []), ...(data.users || [])].forEach(user => users.set(user.id, user));
+    data.users = [...users.values()];
+    return latest;
+}
+
+function defaultProfileData(board = 'cie') {
     return {
-        users: [{ email: 'demo@igcse.com', password: '123456', name: 'Demo User', board: 'cie', role: 'owner' }],
-        currentUser: null,
-        quizRecords: [],
-        quizDrafts: {},
-        wrongQuestions: [],
-        srsData: {},
+        quizRecords: [], quizDrafts: {}, wrongQuestions: [], srsData: {},
         flashcards: JSON.parse(JSON.stringify(FLASHCARD_DECKS)),
         materials: JSON.parse(JSON.stringify(MATERIALS_DATA)),
-        settings: {
-            siteName: '我的IGCSE备考空间',
-            board: 'cie',
-            examDate: '2027-05-15',
-            darkMode: false,
-            reminder: true,
-            remindTime: '20:00',
-            keywords: true,
-        },
-        dailyStats: {},
-        studyTime: 0,
-        streak: 0,
-        lastStudyDate: null,
-        // 成员登记表 / member registry（谁用什么身份访问过本站）
-        members: MEMBERS_DATA.map(m => ({
-            id: 'seed:' + m.name,
-            name: m.name,
-            email: '',
-            role: m.role,
-            joinDate: m.joinDate,
-            lastActive: m.lastActive,
-            visits: 0,
-            avatarColor: m.avatarColor,
-            demo: true,
-        })),
-        // 每位成员的学习记录：id -> { days: { 'YYYY-MM-DD': {questions, correct, seconds} } }
-        memberStats: {},
+        settings: { siteName: '我的IGCSE备考空间', board, examDate: '2027-05-15', darkMode: false, reminder: true, remindTime: '20:00', keywords: true },
+        dailyStats: {}, studyTime: 0, streak: 0, lastStudyDate: null, commandWordProgress: {},
+    };
+}
+
+function profileSnapshot(data) {
+    return Object.fromEntries(PROFILE_DATA_KEYS.map(key => [key, data[key]]));
+}
+
+function getDefaultData() {
+    return {
+        users: [],
+        profiles: {},
+        profilesMigrated: true,
+        activeProfileId: null,
+        guestProfileId: 'guest',
+        currentUser: null,
+        ...defaultProfileData(),
     };
 }
 
 let appData = loadData();
 
-// 兼容旧存档：补齐成员登记表字段，并清理已下线的排行榜快照数据
-(function migrateMemberData() {
-    const defaults = getDefaultData();
-    if (!Array.isArray(appData.members)) appData.members = defaults.members;
-    if (!appData.memberStats || typeof appData.memberStats !== 'object') appData.memberStats = {};
-    if ('leaderboardHistory' in appData) delete appData.leaderboardHistory;
+// Keep any legacy member data untouched while retiring the collaboration UI.
+(function migrateLocalAccounts() {
+    if (!Array.isArray(appData.users)) appData.users = [];
+    if (!appData.profiles || typeof appData.profiles !== 'object') appData.profiles = {};
+    appData.users = appData.users.map((user, index) => {
+        const username = user.username || user.email || user.name || `student${index + 1}`;
+        return { ...user, username, id: user.id || `user:${String(user.email || username).trim().toLocaleLowerCase()}`, role: 'local' };
+    });
 })();
 
 // ========== 工具函数 ==========
@@ -153,6 +167,8 @@ function shuffleArray(arr) {
 }
 
 // ========== 登录系统 ==========
+let pendingProfileLogin = null;
+
 document.querySelectorAll('.login-tab').forEach(tab => {
     tab.addEventListener('click', () => {
         document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
@@ -162,63 +178,157 @@ document.querySelectorAll('.login-tab').forEach(tab => {
     });
 });
 
-function handleLogin() {
-    const email = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
-    const user = appData.users.find(u => u.email === email && u.password === password);
-    if (user) {
-        currentUser = user;
-        appData.currentUser = user;
-        saveData(appData);
+function cloneData(value) { return JSON.parse(JSON.stringify(value)); }
+function profileDefaults(board) { return defaultProfileData(board || 'cie'); }
+function profileKey(user) { return user?.id || appData.guestProfileId || 'guest'; }
+function safeUser(user) { return { id: profileKey(user), name: user.name || user.username || '访客', username: user.username || '', email: user.email || '', role: user.role || 'local', board: user.board || appData.settings?.board || 'cie' }; }
+function profileMigrationTarget(user) {
+    if (appData.profilesMigrated) return null;
+    const previous = appData.currentUser;
+    if (previous?.role === 'guest' || previous?.email === 'guest@temp.com') return appData.guestProfileId || 'guest';
+    const match = appData.users.find(row => row.id === previous?.id || (previous?.email && row.email?.toLocaleLowerCase() === previous.email.toLocaleLowerCase()));
+    if (match) return match.id;
+    if (appData.users.length <= 1) return user.id;
+    return 'choose';
+}
+
+function activateLocalProfile(user, migrationTarget = null) {
+    const candidate = cloneData(appData);
+    const latest = candidate.profilesMigrated ? mergeLatestLocalProfiles(candidate, user.id || 'guest') : null;
+    if (!candidate.profilesMigrated) {
+        const targetId = migrationTarget || profileMigrationTarget(user);
+        if (!targetId || targetId === 'choose') return false;
+        candidate.profiles ||= {};
+        const legacyProfile = profileSnapshot(appData);
+        const previous = appData.currentUser;
+        const targetUser = appData.users.find(row => row.id === targetId);
+        const legacyIdentity = previous?.role === 'guest'
+            ? `guest:${previous.name || '访客'}`
+            : targetId === 'guest' ? 'guest:访客' : previous?.email || targetUser?.email || targetUser?.username || targetUser?.name;
+        if (legacyIdentity) {
+            const legacyOwner = `owner:${encodeURIComponent(legacyIdentity)}`;
+            const profileOwner = `owner:${encodeURIComponent(targetId)}`;
+            for (const key of ['quizDrafts','commandWordProgress']) {
+                const oldState = legacyProfile[key]?.[legacyOwner];
+                if (oldState) legacyProfile[key] = { ...legacyProfile[key], [profileOwner]: oldState };
+            }
+        }
+        candidate.profiles[targetId] = legacyProfile;
+        candidate.profilesMigrated = true;
+
+        const oldTypingOwners = [
+            legacyIdentity,
+            targetId === 'guest' ? 'guest@temp.com' : '',
+            previous?.email || '',
+            previous?.name || '',
+        ].filter(Boolean);
+        const newTypingKey = `igcse_typing_v1:${encodeURIComponent(targetId)}`;
+        if (!localStorage.getItem(newTypingKey)) {
+            for (const owner of oldTypingOwners) {
+                const oldTyping = localStorage.getItem(`igcse_typing_v1:${encodeURIComponent(owner)}`);
+                if (oldTyping) { localStorage.setItem(newTypingKey, oldTyping); break; }
+            }
+        }
+    }
+    const id = user.id || 'guest';
+    candidate.profiles ||= {};
+    const latestActiveProfile = latest?.activeProfileId === id ? profileSnapshot(latest) : null;
+    const previousActiveId = latestActiveProfile ? id : candidate.activeProfileId;
+    if (candidate.profilesMigrated && previousActiveId && previousActiveId !== id) {
+        candidate.profiles[previousActiveId] ||= profileSnapshot(candidate);
+    }
+    const saved = latestActiveProfile || (previousActiveId === id ? profileSnapshot(candidate) : candidate.profiles[id]) || profileDefaults(user.board);
+    Object.assign(candidate, profileDefaults(user.board), saved);
+    delete candidate.profiles[id];
+    candidate.activeProfileId = id;
+    candidate.currentUser = safeUser(user);
+    if (user.role === 'guest') {
+        candidate.guestName = user.name;
+        if (user.email) candidate.guestEmail = user.email;
+    }
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(candidate));
+        appData = candidate;
+        currentUser = { ...user, id };
+        delete currentUser.password;
+        pendingProfileLogin = null;
+        document.getElementById('legacy-migration')?.classList.add('hidden');
         enterApp();
-        showToast('登录成功，欢迎回来！');
+        return true;
+    } catch (error) {
+        showToast('本机存储空间不足，旧进度未迁移。请先导出备份并清理空间。', 5000);
+        return false;
+    }
+}
+
+function requestProfileLogin(user) {
+    const target = profileMigrationTarget(user);
+    if (target !== 'choose') return activateLocalProfile(user, target);
+    pendingProfileLogin = user;
+    const dialog = document.getElementById('legacy-migration');
+    const select = document.getElementById('legacy-migration-profile');
+    select.innerHTML = appData.users.map(row => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.name || row.username || row.email)}</option>`).join('') + '<option value="guest">访客档案 Guest profile</option>';
+    dialog.classList.remove('hidden');
+    select.focus();
+    return false;
+}
+
+function confirmLegacyMigration() {
+    const target = document.getElementById('legacy-migration-profile').value;
+    if (pendingProfileLogin) {
+        const isNew = pendingProfileLogin.isNew === true;
+        if (activateLocalProfile(pendingProfileLogin, target) && isNew) showToast('本地账号注册成功');
+    }
+}
+
+function cancelLegacyMigration() {
+    if (pendingProfileLogin?.isNew) appData.users = appData.users.filter(user => user.id !== pendingProfileLogin.id);
+    pendingProfileLogin = null;
+    document.getElementById('legacy-migration')?.classList.add('hidden');
+}
+
+function handleLogin() {
+    const username = document.getElementById('login-username').value.trim().toLocaleLowerCase();
+    const password = document.getElementById('login-password').value;
+    const user = appData.users.find(u => {
+        const identifiers = [u.username, u.email].filter(Boolean).map(value => value.trim().toLocaleLowerCase());
+        return identifiers.includes(username) && u.password === password;
+    });
+    if (user) {
+        document.getElementById('login-password').value = '';
+        requestProfileLogin(user);
     } else {
-        showToast('邮箱或密码错误');
+        showToast('用户名/邮箱或密码错误');
     }
 }
 
 function handleRegister() {
-    const name = document.getElementById('reg-name').value.trim();
-    const email = document.getElementById('reg-email').value.trim();
+    const username = document.getElementById('reg-username').value.trim();
     const password = document.getElementById('reg-password').value;
-    const inviteCode = document.getElementById('reg-invite-code').value.trim();
     const board = document.getElementById('reg-board').value;
-    if (!name || !email || !password) {
-        showToast('请填写完整信息');
+    if (!username || !password) {
+        showToast('请填写用户名和密码');
         return;
     }
-    if (!inviteCode) {
-        showToast('请输入邀请码');
+    const key = username.toLocaleLowerCase();
+    if (appData.users.some(user => [user.username, user.email].filter(Boolean).some(value => value.trim().toLocaleLowerCase() === key))) {
+        showToast('该用户名已使用');
         return;
     }
-    if (inviteCode !== 'LNZzuishuai666') {
-        showToast('邀请码错误，请确认后重试');
-        return;
-    }
-    if (appData.users.find(u => u.email === email)) {
-        showToast('该邮箱已注册');
-        return;
-    }
-    const newUser = { email, password, name, board, role: 'collab' };
-    appData.users.push(newUser);
-    currentUser = newUser;
-    appData.currentUser = newUser;
-    appData.settings.board = board;
-    saveData(appData);
-    enterApp();
-    showToast('注册成功，欢迎加入！');
+    const user = { id: `user:${encodeURIComponent(key)}`, username, name: username, password, board, role: 'local' };
+    const candidate = cloneData(appData);
+    candidate.users.push(user);
+    appData = candidate;
+    const entered = requestProfileLogin({ ...user, isNew: true });
+    document.getElementById('reg-password').value = '';
+    if (entered) showToast('本地账号注册成功');
 }
 
 function handleGuestLogin() {
-    const code = document.getElementById('guest-code').value;
-    const name = document.getElementById('guest-name').value.trim() || '访客';
-    if (code === 'guest123') {
-        currentUser = { name, role: 'guest', email: 'guest@temp.com' };
-        enterApp();
-        showToast('以访客身份进入');
-    } else {
-        showToast('访问密码错误');
-    }
+    const previousGuest = appData.currentUser?.role === 'guest' ? appData.currentUser : null;
+    const name = document.getElementById('guest-name').value.trim() || appData.guestName || previousGuest?.name || '访客';
+    const user = { id: appData.guestProfileId || 'guest', name, username: '', email: previousGuest?.email || appData.guestEmail || '', board: 'cie', role: 'guest' };
+    if (requestProfileLogin(user)) showToast('已进入本机访客档案');
 }
 
 function handleLogout() {
@@ -229,7 +339,6 @@ function handleLogout() {
     appData.currentUser = null;
     saveData(appData);
     currentPage = null;
-    applyRolePermissions();
     document.getElementById('app').classList.add('hidden');
     document.getElementById('login-page').classList.remove('hidden');
     if (quizState.timerInterval) clearInterval(quizState.timerInterval);
@@ -241,11 +350,7 @@ function enterApp() {
     document.getElementById('user-name').textContent = currentUser.name;
     document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
     if (typeof applyKeywordSetting === 'function') applyKeywordSetting();
-    document.getElementById('user-role').innerHTML = (ROLE_LABELS[currentUser.role] || '访客 Guest');
-    // 按身份显示/隐藏受限页面（访客看不到成员管理）
-    applyRolePermissions();
-    // 登记本次访问的成员身份
-    upsertMember(currentUser);
+    document.getElementById('user-role').textContent = '本机学习档案 Local profile';
     saveData(appData);
     document.getElementById('user-board').textContent = appData.settings.board.toUpperCase();
     if (appData.settings.darkMode) document.body.classList.add('dark-mode');
@@ -256,11 +361,6 @@ function enterApp() {
 
 // ========== 导航 ==========
 function navigateTo(page) {
-    // 权限守卫：访客等无权身份不能进入受限页面
-    if (!canAccessPage(page)) {
-        showToast((PAGE_ACCESS_TIP[page] || '当前身份无权访问该页面。') + ' Members: owners/collaborators only');
-        return;
-    }
     const quizPlaying = !document.getElementById('quiz-playing')?.classList.contains('hidden');
     const activeQuiz = currentPage === 'quiz' && page !== 'quiz' && quizPlaying && quizState.questions.length > 0 && !quizState.finished;
     if (activeQuiz && !confirm('当前练习还没完成，确定暂停并离开吗？稍后可在刷题页面继续，离开期间不计时。\nPause this practice? You can resume from Practice; time away is excluded.')) {
@@ -281,7 +381,7 @@ function navigateTo(page) {
         pastpapers: '历年真题 Past Papers', review: '智能复习 Smart Review', flashcards: '闪卡记忆 Flashcards',
         mustknow: '必考点 Must-Know', keyunits: '重点复习单元 Key Units',
         wrongbook: '错题本 Mistake Book', aichat: '学习助手 Study Assistant', commands: '考试指令词 Command Words', analytics: '学习分析 Analytics',
-        members: '成员管理 Members', settings: '设置 Settings'
+        settings: '设置 Settings'
     };
     document.getElementById('page-title').textContent = titles[page] || '';
     if (window.innerWidth <= 768) closeSidebar();
@@ -326,7 +426,6 @@ function renderPage(page) {
         case 'wrongbook': renderWrongBook(); break;
         case 'commands': renderCommandWords(); break;
         case 'analytics': renderAnalytics(); break;
-        case 'members': canAccessPage('members') ? renderMembers() : renderAccessDenied('members'); break;
         case 'settings': loadSettingsForm(); break;
     }
 }
@@ -842,8 +941,6 @@ function finishQuiz() {
         answers: quizState.answers,
     });
     appData.studyTime += quizState.elapsedSeconds;
-    // 计入当前成员的个人学习档案（成员管理页可见）
-    recordMemberStudy(total, correct, quizState.elapsedSeconds);
     clearQuizDraft();
     saveData(appData);
 }
@@ -1639,218 +1736,6 @@ function renderWeakTopics() {
     `).join('');
 }
 
-// ========== 成员管理 ==========
-// ========== 成员身份与学习档案 ==========
-const ROLE_LABELS = { owner: '所有者 Owner', collab: '协作者 Collaborator', guest: '只读访客 Guest' };
-const ROLE_DESC = {
-    owner: '可管理成员、资料与全部设置 Can manage members, materials and all settings',
-    collab: '可刷题、上传资料与共同复习 Can practise, upload and revise together',
-    guest: '仅可浏览与练习 Read-only browsing and practice',
-};
-const AVATAR_COLORS = ['#e74c3c', '#2980b9', '#27ae60', '#f39c12', '#9b59b6', '#16a085', '#34495e', '#d35400'];
-
-// 成员唯一标识：注册用户用邮箱，访客用「访客 + 昵称」
-function memberIdOf(user) {
-    if (!user) return 'anonymous';
-    if (user.role === 'guest') return 'guest:' + (user.name || '访客');
-    return (user.email && user.email.trim()) || user.name || 'anonymous';
-}
-
-function isOwner() { return !!currentUser && currentUser.role === 'owner'; }
-
-// ========== 页面访问权限 ==========
-// 访客账户不可访问成员管理：只有所有者与协作者可以进入
-const PAGE_ACCESS = {
-    members: ['owner', 'collab'],
-};
-const PAGE_ACCESS_TIP = {
-    members: '成员管理仅所有者与协作者可访问，访客请先注册或登录账号。',
-};
-
-function currentRole() { return currentUser ? (currentUser.role || 'guest') : 'guest'; }
-
-function canAccessPage(page) {
-    const allowed = PAGE_ACCESS[page];
-    if (!allowed) return true;
-    return allowed.includes(currentRole());
-}
-
-function accessDeniedHtml(page) {
-    const tip = PAGE_ACCESS_TIP[page] || '当前身份无权访问该页面。';
-    return `<div class="access-denied">
-        <span class="access-denied-icon">🔒</span>
-        <h4>无权访问<span class="bi-en">Access denied</span></h4>
-        <p>${tip}<span class="bi-en">This page is for owners and collaborators only — guests need to register or log in first.</span></p>
-    </div>`;
-}
-
-// 按当前身份隐藏无权访问的导航项（访客看不到「成员管理」）
-function applyRolePermissions() {
-    document.querySelectorAll('.nav-item').forEach(item => {
-        const ok = canAccessPage(item.dataset.page);
-        item.classList.toggle('hidden', !ok);
-        if (!ok) {
-            item.setAttribute('aria-disabled', 'true');
-            item.title = '当前身份无权访问 Not available for your role';
-        } else {
-            item.removeAttribute('aria-disabled');
-            item.removeAttribute('title');
-        }
-    });
-    const denied = document.getElementById('page-members');
-    if (denied && !canAccessPage('members')) denied.classList.remove('active');
-}
-
-// 登录/注册/访客进入时登记该成员
-function upsertMember(user) {
-    if (!user) return null;
-    const id = memberIdOf(user);
-    const role = user.role || 'guest';
-    const today = getTodayStr();
-    let m = appData.members.find(x => x.id === id);
-    if (!m) {
-        m = {
-            id,
-            name: user.name || id,
-            email: user.role === 'guest' ? '' : (user.email || ''),
-            role,
-            joinDate: today,
-            lastActive: today,
-            visits: 1,
-            avatarColor: AVATAR_COLORS[appData.members.filter(x => !x.demo).length % AVATAR_COLORS.length],
-            board: user.board || appData.settings.board,
-        };
-        appData.members.push(m);
-    } else {
-        m.name = user.name || m.name;
-        m.role = role;
-        if (user.email && user.role !== 'guest') m.email = user.email;
-        if (user.board) m.board = user.board;
-        m.lastActive = today;
-        m.lastSeenAt = new Date().toISOString();
-        m.visits = (m.visits || 0) + 1;
-    }
-    return m;
-}
-
-// 汇总某位成员在指定范围（某天 / 全部）内的学习数据
-function memberAggregate(id, date) {
-    const s = appData.memberStats[id];
-    if (!s || !s.days) return { questions: 0, correct: 0, seconds: 0, accuracy: 0, days: 0 };
-    const days = date ? (s.days[date] ? [s.days[date]] : []) : Object.values(s.days);
-    let questions = 0, correct = 0, seconds = 0;
-    days.forEach(d => { questions += d.questions || 0; correct += d.correct || 0; seconds += d.seconds || 0; });
-    return { questions, correct, seconds, accuracy: questions ? Math.round(correct / questions * 100) : 0, days: days.length };
-}
-
-// 记录一次练习：题量、正确数、用时（秒）
-function recordMemberStudy(questions, correct, seconds) {
-    if (!currentUser) return;
-    const id = memberIdOf(currentUser);
-    const s = appData.memberStats[id] || (appData.memberStats[id] = { days: {}, sessions: 0 });
-    const d = getTodayStr();
-    s.days[d] = s.days[d] || { questions: 0, correct: 0, seconds: 0 };
-    s.days[d].questions += questions;
-    s.days[d].correct += correct;
-    s.days[d].seconds += seconds;
-    s.sessions = (s.sessions || 0) + 1;
-    s.lastActiveISO = new Date().toISOString();
-    const m = upsertMember(currentUser);
-    if (m) m.lastActive = d;
-}
-
-function formatShortTime(seconds) {
-    const s = Math.max(0, Math.round(seconds || 0));
-    if (s < 60) return `${s}s`;
-    const h = Math.floor(s / 3600);
-    const m = Math.round((s % 3600) / 60);
-    return h > 0 ? `${h}h${m}m` : `${m}m`;
-}
-
-// ========== 成员列表 ==========
-function renderAccessDenied(page) {
-    const el = document.getElementById('page-' + page);
-    if (!el) return;
-    const holder = el.querySelector('.members-list-section') || el;
-    const list = document.getElementById('members-list');
-    if (list) list.innerHTML = accessDeniedHtml(page);
-    const counter = document.getElementById('members-counts');
-    if (counter) counter.innerHTML = '';
-    const tip = document.getElementById('members-tip');
-    if (tip) tip.innerHTML = '';
-    refreshKeywords(holder);
-}
-
-function renderMembers() {
-    const list = document.getElementById('members-list');
-    if (!canAccessPage('members')) { renderAccessDenied('members'); return; }
-    const owner = isOwner();
-    const real = appData.members.filter(m => !m.demo);
-    const demo = appData.members.filter(m => m.demo);
-    const today = getTodayStr();
-
-    const counts = { owner: 0, collab: 0, guest: 0 };
-    real.forEach(m => { counts[m.role] = (counts[m.role] || 0) + 1; });
-    const counter = document.getElementById('members-counts');
-    if (counter) {
-        counter.innerHTML = `
-            <div class="lb-stat"><span class="lb-stat-value">${real.length}</span><span class="lb-stat-label">实际成员 Members</span></div>
-            <div class="lb-stat"><span class="lb-stat-value">${counts.owner || 0}</span><span class="lb-stat-label">所有者 Owners</span></div>
-            <div class="lb-stat"><span class="lb-stat-value">${counts.collab || 0}</span><span class="lb-stat-label">协作者 Collaborators</span></div>
-            <div class="lb-stat"><span class="lb-stat-value">${counts.guest || 0}</span><span class="lb-stat-label">访客 Guests</span></div>
-        `;
-    }
-    const tip = document.getElementById('members-tip');
-    if (tip) {
-        tip.innerHTML = owner
-            ? '你是所有者，可以看到每位成员的身份、邮箱与学习情况。<span class="bi-en">You are the owner, so you can see every member role, email and study activity.</span>'
-            : '为了保护隐私，邮箱等详细信息仅所有者可见；你仍可看到成员的身份与学习数据。<span class="bi-en">For privacy, contact details are visible to the owner only, but roles and study data are shown to everyone.</span>';
-    }
-
-    const rowHtml = m => {
-        const agg = memberAggregate(m.id, null);
-        const todayAgg = memberAggregate(m.id, today);
-        const lastText = m.lastActive === today ? '今天 Today' : (m.lastActive || '从未 Never');
-        return `
-        <div class="member-item ${m.demo ? 'member-demo' : ''}">
-            <div class="member-avatar" style="background:${m.avatarColor}">${escapeHtml(m.name.charAt(0))}</div>
-            <div class="member-info">
-                <div class="member-name">${escapeHtml(m.name)}${m.demo ? '<em class="lb-me-tag">示例 Demo</em>' : ''}</div>
-                <div class="member-meta">
-                    加入于 Joined ${escapeHtml(m.joinDate)} · 最后访问 Last seen ${escapeHtml(lastText)} · 访问 ${m.visits || 0} 次 visits
-                </div>
-                <div class="member-meta">${ROLE_DESC[m.role] || ''}</div>
-                ${owner && m.email ? `<div class="member-meta member-email">📧 ${escapeHtml(m.email)}</div>` : ''}
-            </div>
-            <div class="member-stats">
-                <span><b>${formatShortTime(agg.seconds)}</b>总时长 Total</span>
-                <span><b>${agg.questions}</b>总题量 Questions</span>
-                <span><b>${agg.accuracy}%</b>正确率 Accuracy</span>
-                <span><b>${formatShortTime(todayAgg.seconds)}</b>今日 Today</span>
-            </div>
-            <span class="member-role-badge role-${m.role}">${ROLE_LABELS[m.role] || m.role}</span>
-        </div>`;
-    };
-
-    list.innerHTML = real.length
-        ? real.map(rowHtml).join('') + (demo.length ? `<p class="page-desc" style="margin-top:12px">以下为内置示例成员，未在本机登录过。<span class="bi-en">Built-in demo members that have never signed in on this device.</span></p>` + demo.map(rowHtml).join('') : '')
-        : '<div class="empty-state">还没有成员登录记录。把邀请链接或访问密码分享给好友，他们登录后会出现在这里。<span class="bi-en">No sign-ins yet. Share the invite link or access code — members appear here once they log in.</span></div>';
-    refreshKeywords(list);
-}
-
-function copyInviteLink() {
-    const input = document.getElementById('invite-link');
-    input.select();
-    document.execCommand('copy');
-    showToast('邀请链接已复制到剪贴板');
-}
-
-function regenerateCode() {
-    const code = 'IGCSE' + Math.random().toString(36).substring(2, 6).toUpperCase();
-    document.getElementById('access-code').value = code;
-    showToast('新访问密码已生成');
-}
-
 // ========== 设置 ==========
 function loadSettingsForm() {
     document.getElementById('setting-sitename').value = appData.settings.siteName;
@@ -1942,7 +1827,6 @@ function resetProgress() {
         appData.studyTime = 0;
         appData.streak = 0;
         appData.lastStudyDate = null;
-        appData.memberStats = {};
         saveData(appData);
         showToast('学习记录已重置');
         renderDashboard();
@@ -2113,12 +1997,13 @@ function viewUnitMustKnow(subject) {
 
 // ========== 初始化 ==========
 window.addEventListener('load', () => {
-    const inviteLink = document.getElementById('invite-link');
-    if (inviteLink) inviteLink.value = window.location.origin + window.location.pathname;
     // 检查是否有已登录用户
     if (appData.currentUser) {
-        currentUser = appData.currentUser;
-        enterApp();
+        const stored = appData.currentUser;
+        const user = appData.users.find(row => row.id === stored.id || (stored.email && row.email?.toLocaleLowerCase() === stored.email.toLocaleLowerCase()))
+            || { id: stored.id || (stored.role === 'guest' ? appData.guestProfileId || 'guest' : `user:${encodeURIComponent(String(stored.email || stored.name || 'student').toLocaleLowerCase())}`), name: stored.name || '访客', username: stored.username || '', email: stored.email || '', board: stored.board || 'cie', role: stored.role || 'guest' };
+        if (!stored.id) appData.profilesMigrated = false;
+        requestProfileLogin(user);
     }
 
     // 回车键登录

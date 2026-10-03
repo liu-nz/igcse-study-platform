@@ -2,7 +2,7 @@
 let typingData = { words: {}, session: null };
 let typingOwner = null;
 const typingEl = id => document.getElementById('typing-' + id);
-function typingStorageKey() { return 'igcse_typing_v1:' + encodeURIComponent(currentUser?.email || currentUser?.name || 'guest'); }
+function typingStorageKey() { return 'igcse_typing_v1:' + encodeURIComponent(currentUser?.id || currentUser?.email || currentUser?.name || 'guest'); }
 function saveTyping() {
     try { localStorage.setItem(typingOwner, JSON.stringify(typingData)); typingEl('storage-warning').classList.add('hidden'); }
     catch (_) { typingEl('storage-warning').classList.remove('hidden'); }

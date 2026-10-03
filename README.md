@@ -3,8 +3,8 @@
 专门帮助中文母语者理解 IGCSE 英文考点、术语与答题要求的免费双语备考网站。
 A free bilingual IGCSE revision site for native Chinese speakers, connecting Chinese explanations with English exam terminology.
 
-所有核心学习功能均在浏览器本地运行，无付费 AI 或云服务依赖。学习助手默认匹配内置关键词知识库；用户可选连接兼容 API，密钥只保存在当前页面内存且不会进入备份。账号和成员记录仅存在当前浏览器，不代表真实云端登录或协作。
-Core study features run locally, without paid AI or cloud dependencies. The Study Assistant defaults to its built-in keyword knowledge base; users may optionally connect a compatible API, with its key held only in page memory and excluded from backups. Accounts and member records are browser-local, not cloud authentication or collaboration.
+所有核心学习功能均在浏览器本地运行，无付费 AI 或云服务依赖。学习助手默认匹配内置关键词知识库；用户可选连接兼容 API，密钥只保存在当前页面内存且不会进入备份。登录、注册和学习档案仅保存在当前浏览器，不提供云端账号、安全隔离、邮箱验证或密码找回。访客可免密码使用；换设备前请导出备份。
+Core study features run locally, without paid AI or cloud dependencies. The Study Assistant defaults to its built-in keyword knowledge base; users may optionally connect a compatible API, with its key held only in page memory and excluded from backups. Accounts and study profiles stay in this browser. There is no cloud authentication, secure isolation, email verification or password recovery. Guests can enter without a password; export a backup before changing devices.
 
 ## 复习闭环
 
@@ -14,7 +14,7 @@ Core study features run locally, without paid AI or cloud dependencies. The Stud
 
 ## 考试指令词与英文答题表达
 
-新增「考试指令词」页：14 个指令词的中文说明、英文表达示例、常见误区与官方来源链接，附 8 道原创答法辨析练习。错过的词加入待巩固，连续两次辨析正确后移出，历史保留；这不等于真实考试答题已经掌握。当前身份的指令词进度可随 v2 备份迁移，导入同词仍保留本机状态。
+新增「考试指令词」页：14 个指令词的中文说明、英文表达示例、常见误区与官方来源链接，附 8 道原创答法辨析练习。错过的词加入待巩固，连续两次辨析正确后移出，历史保留；这不等于真实考试答题已经掌握。当前本地档案的指令词进度可随 v2 备份迁移，导入同词仍保留本机状态。
 
 目前题库共 217 道题，全部提供题目专属的中文思路、英文术语、原创答题表达与常见失分提醒；答题解析和错题本均可查看。80 道四科重点专项题及其他科目的 137 道代表性题均由同一指导系统覆盖。所有示例为本站原创教学内容，不是官方评分标准；答题长度与要点应结合具体题目、分值、科目考纲。
 
@@ -24,11 +24,11 @@ Core study features run locally, without paid AI or cloud dependencies. The Stud
 
 刷题页显示当前本机身份的未完成练习，可继续原题目顺序、答案、未提交选择和计时。暂停、离开页面、切换到后台及刷新时会保存；离开期间不计时。已提交答案在恢复时不重复计入统计、错题或 SRS。完成练习后草稿清除，整次记录只保存一次。
 
-每个本机身份保留一份草稿，新练习会先询问是否替换；草稿不进入跨设备备份。题库题目或选项更新后，旧草稿会提示不可恢复，已提交学习记录仍保留。建议同一身份只在一个标签页答题；突然终止浏览器时可能损失最后约 10 秒的计时，存储失败会显示现有警告。
+每个本地档案保留一份草稿，新练习会先询问是否替换；草稿不进入跨设备备份。题库题目或选项更新后，旧草稿会提示不可恢复，已提交学习记录仍保留。建议同一本地档案只在一个标签页答题；突然终止浏览器时可能损失最后约 10 秒的计时，存储失败会显示现有警告。
 
 ## 零成本备份与换设备
 
-在「设置 → 数据管理」可导出两种备份：JSON 学习数据（兼容旧版 v1 与新版 v2，最大 5 MB），或完整 ZIP（最大 100 MB，其中附件合计最多 90 MB）。完整 ZIP 会携带本机 IndexedDB 中的资料附件，可在另一台设备预览后恢复；旧的 metadata-only 资料仍需重新上传。两种备份均包含练习、错题、SRS、闪卡、资料索引及当前用户的默写词进度，不包含账号、成员或 API 凭据；默写中的输入会话不迁移。
+在「设置 → 数据管理」可导出两种备份：JSON 学习数据（兼容旧版 v1 与新版 v2，最大 5 MB），或完整 ZIP（最大 100 MB，其中附件合计最多 90 MB）。完整 ZIP 会携带本机 IndexedDB 中的资料附件，可在另一台设备预览后恢复；旧的 metadata-only 资料仍需重新上传。两种备份均包含当前本地档案的练习、错题、SRS、闪卡、资料索引及默写词进度，不包含账号密码或 API 凭据；默写中的输入会话不迁移。换设备后先创建或进入本地档案，再导入备份。
 
 重复导入不会叠加同一练习；已有同题错题、SRS、默写状态、资料及账号、设置以本机为准；ZIP 中同 ID 的本地文件不会覆盖。闪卡合并不重复的卡片，资料按 ID 合并。每日统计和时长采用快照最大值与已去重历史的较大值，避免重复叠加；跨设备尚未完成的独立答题统计可能无法完整相加，这属于手动迁移而非实时同步。
 
@@ -45,22 +45,13 @@ SRS 显示今日与逾期、明天和未来 7 天（含明天、不含今天）�
 - **默写词库 Recall & Type**：848 个词条，覆盖 ICT 0417、CS 0478、ESL 0510、Maths 0580、Physics 0625、Chemistry 0620、Biology 0610、Economics 0455，支持看释义默写与听音默写。
 - **选项与答案双语 Bilingual options & answers**：题库刷题中，除英语 ESL 外的所有科目（ICT / CS / 数学 / 物理 / 化学 / 生物 / 经济）的选项与正确答案均显示「中文 + 英文」两行对照；纯数字、公式、化学式与代码类选项保持原样。
   In quiz practice, every option and correct answer for all subjects except ESL is shown in Chinese with its English equivalent; number, formula, chemical-equation and code options stay as they are.
-- **成员与身份 Members & roles**：登录/注册/访客进入时自动登记成员，记录身份（所有者 / 协作者 / 只读访客）、加入时间、最后访问与访问次数。邮箱等详细信息仅所有者可见。
-  Every sign-in registers the member with their role, join date, last visit and visit count. Contact details are owner-only.
-- **成员学习档案 Member study stats**：每位成员的总学习时长、总题量、正确率与今日数据记录在成员列表中（仅统计题库练习）。
-  Each member's total study time, questions, accuracy and today's activity are shown in the member list.
-- **权限控制 Access control**：成员管理仅所有者与协作者可访问；访客账户看不到该入口，强行跳转会被拦截并提示。
-  Members is restricted to owners and collaborators — guests cannot see or open it.
+- **本地账号 Local profiles**：可在当前浏览器注册多个独立学习档案，也可免密码进入访客档案。账号不是云端登录，学习数据不会自动同步。
+  Create separate study profiles in this browser, or enter a guest profile without a password. These are not cloud accounts and do not sync automatically.
 - 8 大科目题库（数学/物理/化学/生物/经济/英语 ESL/ICT/计算机科学），217 道练习题，120 张闪卡（10 个卡组），40 份资料，14 套真题，10 个 内置知识点。
 - **完整本地备份 Full local backup**：ZIP 包含学习数据与资料附件；兼容旧 JSON 备份，导入前预览，失败时回滚已写入附件。
 - **可选 BYO API**：兼容 Chat Completions endpoint；默认关闭，本地知识助手照常可用，密钥不写入持久存储或备份。
 - 纯前端实现，无第三方运行时依赖；响应式设计适配手机和电脑端。
   Pure front end with no third-party runtime dependency, responsive on phone and desktop.
-
-## 演示账号 Demo accounts
-- 邮箱 Email：demo@igcse.com
-- 密码 Password：123456
-- 访客密码 Guest code：guest123
 
 ## 技术栈 Tech stack
 HTML5 + CSS3 + 原生 JavaScript + localStorage + Canvas
