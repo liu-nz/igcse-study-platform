@@ -44,3 +44,11 @@ Past papers: displayed type is derived from manifest kind (official past paper, 
 Added 16 further guides (four per subject for existing IDs 7, 8, 10 and 11), bringing the four-subject focus set to 52/80, thirteen per subject. Coverage includes database keys and criteria, accessibility alt text, RAM/ROM, parity, public-key encryption, iteration, ESL collocations/conditionals, composite functions, gradients, nth terms and volume ratios. Question IDs, options and canonical answers are unchanged.
 
 The four-subject browser walkthrough now checks each of the 52 explanation renderers plus mistake-book display, review progress, backup and 375/390/430/768px layout.
+
+## 2026-10-03 complete four-subject focus coaching
+
+Added the final 28 guides, IDs 12, 14, 15, 16, 18, 19 and 20 for each subject. All 80 four-subject focus questions now have specific Chinese reasoning, English terminology or worked response, and a pitfall. Content was checked against each question’s existing canonical answer. No question text, options, answers, or study records changed.
+
+## Complete command-word exercise coverage
+
+Added original practice items for Contrast, Identify, Describe, Evaluate, Outline and Suggest. All 14 listed command words now have an answer-shape exercise; each target is distinct and carries a contextual reason. Automated data checks verify every command word has exactly one or more valid exercises.
