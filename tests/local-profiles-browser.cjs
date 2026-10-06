@@ -137,7 +137,7 @@ async function openApp(browser, initialData = null, extraStorage = {}) {
             quizRecords: [{ id: 'old-session', questions: [], answers: [], date: '2026-10-01', time: 50 }],
             quizDrafts: { [legacyOwner(legacyEmail)]: { id: 'old-draft', savedAt: '2026-10-01T10:00:00Z' } },
             wrongQuestions: [{ id: 'old-mistake' }], srsData: { 'old-card': { interval: 2 } },
-            flashcards: [], materials: [], settings: { board: 'edexcel', keywords: false }, dailyStats: {},
+            flashcards: [], materials: [{ id: 'user-material', name: 'Own notes', type: 'notes', subject: '数学', tags: [] }], settings: { board: 'edexcel', keywords: false }, dailyStats: {},
             studyTime: 50, streak: 2, lastStudyDate: '2026-10-01', commandWordProgress: { [legacyOwner(legacyEmail)]: { explain: { attempts: 3 } } },
             members: [{ id: 'keep-member-history' }], memberStats: { keep: { days: {} } },
         };
@@ -152,6 +152,8 @@ async function openApp(browser, initialData = null, extraStorage = {}) {
         assert.equal(migrated.commandWordProgress[`owner:${encodeURIComponent(legacyProfileId)}`].explain.attempts, 3);
         assert.equal(migrated.quizDrafts[`owner:${encodeURIComponent(legacyProfileId)}`].id, 'old-draft');
         assert.equal(migrated.members[0].id, 'keep-member-history');
+        assert.ok(migrated.materials.some(material => material.id === 'guide-0580-worked'), 'existing profiles receive newly added built-in guides');
+        assert.ok(migrated.materials.some(material => material.id === 'user-material'), 'profile upgrades retain user material metadata');
         assert.deepEqual(await legacy.page.evaluate(id => JSON.parse(localStorage.getItem(`igcse_typing_v1:${encodeURIComponent(id)}`)), legacyProfileId), oldTyping);
         await legacy.context.close();
 

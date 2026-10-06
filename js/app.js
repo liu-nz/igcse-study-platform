@@ -239,6 +239,11 @@ function activateLocalProfile(user, migrationTarget = null) {
     }
     const saved = latestActiveProfile || (previousActiveId === id ? profileSnapshot(candidate) : candidate.profiles[id]) || profileDefaults(user.board);
     Object.assign(candidate, profileDefaults(user.board), saved);
+    const canonicalMaterialIds = new Set(MATERIALS_DATA.map(material => material.id));
+    candidate.materials = [
+        ...cloneData(MATERIALS_DATA),
+        ...(candidate.materials || []).filter(material => !canonicalMaterialIds.has(material.id)),
+    ];
     delete candidate.profiles[id];
     candidate.activeProfileId = id;
     candidate.currentUser = safeUser(user);
