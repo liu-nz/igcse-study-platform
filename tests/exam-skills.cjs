@@ -17,9 +17,10 @@ const focus=fs.readFileSync('js/data-focus.js','utf8');run(focus.slice(0,focus.i
 assert.equal(run('Object.keys(EXAM_ANSWER_GUIDES).length'),217);
 assert.equal(run('Object.keys(EXAM_ANSWER_GUIDES).filter(id=>id.startsWith("focus-")).length'),80);
 assert.equal(run('FOCUS_SUBJECTS.every(subject=>Object.keys(EXAM_ANSWER_GUIDES).filter(id=>id.startsWith("focus-"+subject+"-")).length===20)'),true);
-run(fs.readFileSync('js/data-q1.js','utf8'));run(fs.readFileSync('js/data-q2.js','utf8'));run(fs.readFileSync('js/data.js','utf8'));
-assert.equal(run('QUESTION_BANK.length'),217);
-assert.equal(run('QUESTION_BANK.every(q=>EXAM_ANSWER_GUIDES[q.id])'),true);
+run(fs.readFileSync('js/data-q1.js','utf8'));run(fs.readFileSync('js/data-q2.js','utf8'));run(fs.readFileSync('js/data-q3.js','utf8'));run(fs.readFileSync('js/data.js','utf8'));
+assert.equal(run('QUESTION_BANK.length'),337);
+assert.equal(run('QUESTION_BANK.filter(q=>EXAM_ANSWER_GUIDES[q.id]).length'),217);
+assert.equal(run('Object.keys(EXAM_ANSWER_GUIDES).every(id=>QUESTION_BANK.some(q=>q.id===id))'),true);
 assert.equal(run('QUESTION_BANK.filter(q=>["0625","0620"].includes(q.subjectCode) && EXAM_ANSWER_GUIDES[q.id]).length'),30);
 assert.equal(run('Object.keys(EXAM_ANSWER_GUIDES).filter(id=>/^[pc]\\d{3}$/.test(id)).length'),30);
 assert.equal(run('Object.keys(EXAM_ANSWER_GUIDES).filter(id=>/^p\\d{3}$/.test(id)).every(id=>QUESTION_BANK.some(q=>q.id===id&&q.subjectCode==="0625"))'),true);
@@ -37,7 +38,7 @@ assert.equal(run('Object.keys(EXAM_ANSWER_GUIDES).filter(id=>/^m\\d{3}$/.test(id
 assert.equal(run('Object.keys(EXAM_ANSWER_GUIDES).filter(id=>id.startsWith("esl")).length'),22);
 assert.equal(run('Object.keys(EXAM_ANSWER_GUIDES).filter(id=>id.startsWith("esl")).every(id=>QUESTION_BANK.some(q=>q.id===id&&q.subjectCode==="0510"))'),true);
 assert.equal(run("examAnswerGuideHtml({id:'missing'})"),'');
-console.log('All 14 command words practised, review retention/relapse, duplicate-answer guard and 217 linked coaching guides across all subjects: passed');
+console.log('All 14 command words practised, review retention/relapse, duplicate-answer guard and 217 linked coaching guides within the 337-question bank: passed');
 
 // Every guide must provide usable bilingual coaching, not an empty placeholder.
 assert.equal(run('Object.values(EXAM_ANSWER_GUIDES).every(g=>g.keywords.length>=2 && g.keywords.every(k=>/[A-Za-z]/.test(k)) && /[\\u4e00-\\u9fff]/.test(g.reasoning) && g.model.trim().length>0 && /[\\u4e00-\\u9fff]/.test(g.pitfall))'),true);

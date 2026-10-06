@@ -16,7 +16,9 @@ Core study features run locally, without paid AI or cloud dependencies. The Stud
 
 新增「考试指令词」页：14 个指令词的中文说明、英文表达示例、常见误区与官方来源链接，附 8 道原创答法辨析练习。错过的词加入待巩固，连续两次辨析正确后移出，历史保留；这不等于真实考试答题已经掌握。当前本地档案的指令词进度可随 v2 备份迁移，导入同词仍保留本机状态。
 
-目前题库共 217 道题，全部提供题目专属的中文思路、英文术语、原创答题表达与常见失分提醒；答题解析和错题本均可查看。80 道四科重点专项题及其他科目的 137 道代表性题均由同一指导系统覆盖。所有示例为本站原创教学内容，不是官方评分标准；答题长度与要点应结合具体题目、分值、科目考纲。
+目前题库共 337 道题：四科重点专项 160 道，其余科目 177 道。新增题目覆盖数学、ICT、计算机科学、ESL、物理、化学、生物与经济，含中英题干、英文关键词和双语解析；均为原创练习，不复制官方真题。答题长度与要点应结合具体题目、分值及当年考纲。
+
+资料中心新增 8 份原创双语指南，分别覆盖 0580 多步计算、0417 表格与数据库实操、0478 程序追踪与测试、0510 阅读写作、0625 实验与图像、0620 定性分析、0610 实验数据和 0455 解释与评价。账号切换时会将新发布的内置资料补入当前档案，同时保留用户自己的资料索引。
 
 来源：[Cambridge 指令词说明](https://www.cambridgeinternational.org/exam-administration/what-to-expect-on-exams-day/command-words/)；[Math 0580 2025–2027 考纲](https://www.cambridgeinternational.org/Images/662466-2025-2027-syllabus.pdf)。compare 应按题目比较相同点和／或不同点，不能强行套用“每次必须两者都写”的规则。
 
@@ -47,7 +49,7 @@ SRS 显示今日与逾期、明天和未来 7 天（含明天、不含今天）�
   In quiz practice, every option and correct answer for all subjects except ESL is shown in Chinese with its English equivalent; number, formula, chemical-equation and code options stay as they are.
 - **本地账号 Local profiles**：可在当前浏览器注册多个独立学习档案，也可免密码进入访客档案。账号不是云端登录，学习数据不会自动同步。
   Create separate study profiles in this browser, or enter a guest profile without a password. These are not cloud accounts and do not sync automatically.
-- 8 大科目题库（数学/物理/化学/生物/经济/英语 ESL/ICT/计算机科学），217 道练习题，120 张闪卡（10 个卡组），40 份资料，14 套真题，10 个 内置知识点。
+- 8 大科目题库（数学/物理/化学/生物/经济/英语 ESL/ICT/计算机科学），337 道原创练习题，120 张闪卡（10 个卡组），48 份资料，14 套真题，10 个内置知识点。
 - **完整本地备份 Full local backup**：ZIP 包含学习数据与资料附件；兼容旧 JSON 备份，导入前预览，失败时回滚已写入附件。
 - **可选 BYO API**：兼容 Chat Completions endpoint；默认关闭，本地知识助手照常可用，密钥不写入持久存储或备份。
 - 纯前端实现，无第三方运行时依赖；响应式设计适配手机和电脑端。
