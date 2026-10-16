@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IGCSE AI Tutor MVP</title>
+<style>
+body{font:16px system-ui;background:#f4f6fb;color:#1b2841;margin:0}
+main{max-width:760px;margin:40px auto;padding:16px}
+h1{font-size:26px}small{color:#64748b}
+#chat{background:white;border:1px solid #dce2ed;border-radius:16px;padding:18px;min-height:340px;display:flex;flex-direction:column;gap:12px}
+.bubble{white-space:pre-wrap;overflow-wrap:anywhere;max-width:88%;border-radius:12px;background:#edf2fa;padding:12px;line-height:1.6}
+.user{align-self:flex-end;background:#d9e9ff}.assistant{align-self:flex-start}
+form{display:flex;gap:8px;margin-top:12px}textarea{flex:1;padding:12px;font:inherit;border:1px solid #cbd5e1;border-radius:10px;min-height:64px}
+button{background:#285ac8;border:0;border-radius:10px;padding:0 20px;color:white;font:inherit}
+button:disabled{opacity:.5}
+</style></head><body><main>
+<h1>IGCSE Physics AI Tutor</h1><small>Cambridge 0625 · 中英双语 · 本地开发原型</small>
+<section id="chat" aria-live="polite"><div class="bubble assistant">你好！问我一道 Physics 0625 题目，或者让我讲解知识点。</div></section>
+<form id="form"><textarea id="question" maxlength="4000" required placeholder="例如：请用中英文解释 Ohm's Law"></textarea><button id="send">发送</button></form>
+<p><small>本原型没有账号、永久记忆或考纲检索。不要输入个人信息；仅供本机开发测试。</small></p>
+</main><script>
+const form=document.querySelector('#form'),input=document.querySelector('#question'),chat=document.querySelector('#chat'),send=document.querySelector('#send');
+const history=[];
+function bubble(role,text){const node=document.createElement('div');node.className='bubble '+role;node.textContent=text;chat.append(node);node.scrollIntoView({block:'end'});return node}
+form.addEventListener('submit',async event=>{
+ event.preventDefault();const message=input.value.trim();if(!message)return;
+ bubble('user',message);input.value='';send.disabled=true;const loading=bubble('assistant','正在思考…');
+ try{
+ const response=await fetch('/api/tutor/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,history})});
+ const data=await response.json();if(!response.ok)throw Error(data.detail||'请求失败');
+ loading.textContent=data.answer;history.push({role:'user',content:message},{role:'assistant',content:data.answer});if(history.length>12)history.splice(0,history.length-12);
+ }catch(error){loading.textContent='请求失败：'+error.message}finally{send.disabled=false;input.focus()}
+});
+</script></body></html>
